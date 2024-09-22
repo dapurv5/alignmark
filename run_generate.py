@@ -1,11 +1,24 @@
 import json
 import os
+import random
 from typing import Any, List
 
 import fire
+import numpy as np
+import torch
 from datasets import load_dataset
 
 from generate import WatermarkTextPairsGenerator
+
+
+def seed_everything(seed: int):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 def run_generator(
@@ -36,8 +49,10 @@ def main(
     watermark_algorithm_config_key: str = None,  # e.g. delta
     watermark_algorithm_config_val: float = None,  # e.g. 2.0
     limit_dataset_size: int = -1,
+    seed: int = 42,
     **additional_generate_kwargs,
 ):
+    seed_everything(seed)
     dataset = load_dataset(dataset_name, trust_remote_code=True)
     dataset = dataset["test"] if "test" in dataset else dataset
     if limit_dataset_size > 0:

@@ -77,5 +77,5 @@ for temperature in $(seq 0.2 0.2 0.4); do
         --watermark_name "EXP" \
         --dataset_name "Dahoas/full-hh-rlhf" \
         --temperature $temperature \
-        --limit_dataset_size 1000
+        --limit_dataset_size 500
 done
