@@ -10,8 +10,9 @@ from tqdm import tqdm
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 from utils.transformers_config import TransformersConfig
 from vllm import LLM
-from vllm_utils import patch_watermark
 from watermark.auto_watermark import AutoWatermark
+
+from vllm_utils import patch_watermark
 
 
 class WatermarkTextPairsGenerator:
@@ -51,6 +52,9 @@ class WatermarkTextPairsGenerator:
                 trust_remote_code=True,
                 low_cpu_mem_usage=True,
                 device_map="auto",
+                # use_cache=True,  # Commented out for LLaMA models
+                use_flash_attention_2=True,
+                attn_implementation="flash_attention_2",
             )
 
     def _initialize_watermark(self, **generate_kwargs):
@@ -79,7 +83,7 @@ class WatermarkTextPairsGenerator:
             return watermark
 
     def generate(self, examples: Any):
-        with open(os.path.join(self.output_path), "w") as results_fp:
+        with open(self.output_path, "w") as results_fp:
             for example in tqdm(examples):
                 prompt = example["prompt"]
                 watermarked_text = self.watermark.generate_watermarked_text(prompt)
