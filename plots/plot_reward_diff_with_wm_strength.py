@@ -155,7 +155,7 @@ def plot_reward_diff(
         )
         axs.legend(loc="best", fontsize=5)
 
-        axs.set_xlim(left=2, right=8)  # Set x-axis to start at 2
+        axs.set_xlim(left=0, right=1.0)  # Set x-axis to start at 2
         axs.grid(True, linestyle="--", alpha=0.7)  # Add grid lines
 
         # plt.tight_layout()
