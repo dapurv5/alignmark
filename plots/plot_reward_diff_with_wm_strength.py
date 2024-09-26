@@ -87,9 +87,9 @@ def plot_reward_diff(
     watermark_type_to_plot: str = "KGW",
     wm_strength_param_name_to_plot: str = "delta",
 ):
-    data: dict[tuple[str, str], list[tuple[float, list[float], list[float]]]] = (
-        process_files(input_dir, watermark_type_to_plot, wm_strength_param_name_to_plot)
-    )
+    data: dict[
+        tuple[str, str], list[tuple[float, list[float], list[float]]]
+    ] = process_files(input_dir, watermark_type_to_plot, wm_strength_param_name_to_plot)
     with prp.get_context(layout=prp.Layout.ICML, single_col=True) as (
         fig,
         axs,

@@ -7,7 +7,6 @@ import fire
 import numpy as np
 import torch
 from datasets import load_dataset
-
 from generate import WatermarkTextPairsGenerator
 
 
@@ -86,9 +85,9 @@ def main(
             watermark_algorithm_default_config_path, "r"
         ) as algorithm_default_config_fp:
             algorithm_config_blob = json.load(algorithm_default_config_fp)
-        algorithm_config_blob[watermark_algorithm_config_key] = (
-            watermark_algorithm_config_val
-        )
+        algorithm_config_blob[
+            watermark_algorithm_config_key
+        ] = watermark_algorithm_config_val
         algorithm_config_path = os.path.join(
             exp_dir,
             f"{watermark_name}_{watermark_algorithm_config_key.replace('_', '')}_{algorithm_config_blob[watermark_algorithm_config_key]}.json",
