@@ -23,7 +23,12 @@ def run_reward_scorer(
                     + os.path.splitext(input_filename)[1]
                 )
                 output_filename = os.path.join(output_path, output_filename)
-                scorer.compute_rewards(input_file, output_filename)
+                if not os.path.exists(output_filename) or (
+                    os.path.exists(output_filename)
+                    and sum(1 for _ in open(input_file))
+                    != sum(1 for _ in open(output_filename))
+                ):
+                    scorer.compute_rewards(input_file, output_filename)
 
 
 if __name__ == "__main__":
