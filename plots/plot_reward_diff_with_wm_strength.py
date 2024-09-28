@@ -81,6 +81,13 @@ def process_files(
     return data
 
 
+def get_short_model_name(model_name: str) -> str:
+    return {
+        "Mistral-7B-Instruct-v0.3": "Mistral-7B-Inst",
+        "Meta-Llama-3.1-8B-Instruct": "Meta-Llama-8B-Inst",
+    }.get(model_name, model_name)
+
+
 def plot_reward_diff(
     input_dir: str,
     output_file: str = "rewards_plot.pdf",
@@ -106,7 +113,7 @@ def plot_reward_diff(
             axs.plot(
                 wm_strengths,
                 [np.mean(w) for w in watermarked_rewards],
-                label=f"{model_name} (Watermarked)",
+                label=f"{get_short_model_name(model_name)} (W)",
                 marker="o",
                 markersize=2,
                 markerfacecolor=color,
@@ -128,7 +135,7 @@ def plot_reward_diff(
             axs.plot(
                 wm_strengths,
                 [np.mean(u) for u in unwatermarked_rewards],
-                label=f"{model_name} (Unwatermarked)",
+                label=f"{get_short_model_name(model_name)} (U)",
                 marker="s",
                 markersize=2,
                 markerfacecolor="none",
@@ -146,10 +153,10 @@ def plot_reward_diff(
             #     alpha=0.1,
             # )
 
-        axs.set_xlabel(f"({wm_strength_param_name_to_plot}) →", fontsize=6)
+        axs.set_xlabel(f"{wm_strength_param_name_to_plot} →", fontsize=6)
         axs.set_ylabel("Reward Score", fontsize=6, labelpad=3)
         axs.tick_params(axis="both", which="major", labelsize=5)
-        axs.set_title("Reward Scores with Increasing Watermark Strength", fontsize=6)
+        axs.set_title("Reward Scores with Temperature", fontsize=6)
         axs.legend(loc="best", fontsize=5)
 
         axs.set_xlim(left=0.2, right=1)
