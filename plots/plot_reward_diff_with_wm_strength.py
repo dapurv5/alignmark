@@ -87,81 +87,74 @@ def plot_reward_diff(
     watermark_type_to_plot: str = "KGW",
     wm_strength_param_name_to_plot: str = "delta",
 ):
-    data: dict[
-        tuple[str, str], list[tuple[float, list[float], list[float]]]
-    ] = process_files(input_dir, watermark_type_to_plot, wm_strength_param_name_to_plot)
+    data: dict[tuple[str, str], list[tuple[float, list[float], list[float]]]] = (
+        process_files(input_dir, watermark_type_to_plot, wm_strength_param_name_to_plot)
+    )
     with prp.get_context(layout=prp.Layout.ICML, single_col=True) as (
         fig,
         axs,
     ):
         plt.rcParams.update({"font.size": 6})
-        plt.rcParams.update({"font.size": 6})
         colors = cycle(plt.cm.tab10.colors)  # Create a color cycle
         for (model_name, dataset_name), values in data.items():
             print(f"Reading data for {model_name} on {dataset_name} and plotting")
             wm_strengths, watermarked_rewards, unwatermarked_rewards = zip(*values)
-            # wm_strengths is a tuple of floats
-            # watermarked_rewards is a tuple of list of floats
-            # unwatermarked_rewards is a tuple of list of floats
-            reward_diffs = []
-            reward_diff_stds = []
-            for idx, wm_strength in enumerate(wm_strengths):
-                reward_diff_arrays = [
-                    (np.array(w) - np.array(u))
-                    / (
-                        np.array(u) + 1e-6
-                    )  # Add a small value to avoid division by zero
-                    for w, u in zip(
-                        watermarked_rewards[idx], unwatermarked_rewards[idx]
-                    )
-                ]
-                reward_diffs.append(np.mean(reward_diff_arrays))
-                reward_diff_stds.append(np.std(reward_diff_arrays))
-            color = next(colors)
-            import pdb
 
-            pdb.set_trace()
+            color = next(colors)
+
+            # Plot watermarked scores
             axs.plot(
                 wm_strengths,
-                reward_diffs,
-                # label=f"{model_name} on {dataset_name}",
-                label=f"{model_name}",
-                marker={
-                    "Meta-Llama-3.1-8B-Instruct": "v",
-                    "Meta-Llama-3.1-34B-Instruct": "s",
-                    "Meta-Llama-3.1-70B-Instruct": "o",
-                }.get(model_name, "o"),
+                [np.mean(w) for w in watermarked_rewards],
+                label=f"{model_name} (Watermarked)",
+                marker="o",
                 markersize=2,
                 markerfacecolor=color,
                 markeredgecolor=color,
                 color=color,
                 alpha=0.7,
                 markeredgewidth=1,
-                linestyle="--",  # Add this line to make the line dotted
+                linestyle="-",
             )
-            axs.errorbar(
+            # axs.fill_between(
+            #     wm_strengths,
+            #     [np.mean(w) - np.std(w) for w in watermarked_rewards],
+            #     [np.mean(w) + np.std(w) for w in watermarked_rewards],
+            #     color=color,
+            #     alpha=0.2,
+            # )
+
+            # Plot unwatermarked scores
+            axs.plot(
                 wm_strengths,
-                reward_diffs,
-                yerr=reward_diff_stds,
-                fmt="none",  # Remove connecting lines
-                ecolor=color,
-                capsize=2,
+                [np.mean(u) for u in unwatermarked_rewards],
+                label=f"{model_name} (Unwatermarked)",
+                marker="s",
+                markersize=2,
+                markerfacecolor="none",
+                markeredgecolor=color,
+                color=color,
                 alpha=0.7,
-                elinewidth=0.5,
+                markeredgewidth=1,
+                linestyle="--",
             )
+            # axs.fill_between(
+            #     wm_strengths,
+            #     [np.mean(u) - np.std(u) for u in unwatermarked_rewards],
+            #     [np.mean(u) + np.std(u) for u in unwatermarked_rewards],
+            #     color=color,
+            #     alpha=0.1,
+            # )
 
         axs.set_xlabel(f"({wm_strength_param_name_to_plot}) →", fontsize=6)
-        axs.set_ylabel(r"$\frac{R_w - R_u}{R_u}$", fontsize=6, labelpad=3)
-        # reduce the size of ticks on x and y axis
+        axs.set_ylabel("Reward Score", fontsize=6, labelpad=3)
         axs.tick_params(axis="both", which="major", labelsize=5)
-        axs.set_title(r"Relative Reward score gap with increasing temp.", fontsize=6)
+        axs.set_title("Reward Scores with Increasing Watermark Strength", fontsize=6)
         axs.legend(loc="best", fontsize=5)
 
-        axs.set_xlim(left=0.2, right=1)  # Set x-axis to start at 2
-        axs.set_ylim(bottom=-5.0, top=1.0)
-        axs.grid(True, linestyle="--", alpha=0.7)  # Add grid lines
+        axs.set_xlim(left=0.2, right=1)
+        axs.grid(True, linestyle="--", alpha=0.7)
 
-        # plt.tight_layout()
         fig.savefig(output_file, format="pdf", bbox_inches="tight")
         print(f"Plot saved as {output_file}")
 
