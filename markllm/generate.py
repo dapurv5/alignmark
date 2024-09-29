@@ -10,8 +10,9 @@ from tqdm import tqdm
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 from utils.transformers_config import TransformersConfig
 from vllm import LLM
-from vllm_utils import patch_watermark
 from watermark.auto_watermark import AutoWatermark
+
+from vllm_utils import patch_watermark
 
 
 class WatermarkTextPairsGenerator:
@@ -21,6 +22,7 @@ class WatermarkTextPairsGenerator:
         watermark_name: str,
         output_path: str,
         watermark_algorithm_config: str,
+        prompt_key: str = "prompt",
         **generate_kwargs,
     ):
         self.model_name = model_name
@@ -32,6 +34,7 @@ class WatermarkTextPairsGenerator:
         self.num_gpus = torch.cuda.device_count()
         self.llm = self._initialize_llm()
         self.watermark = self._initialize_watermark(**generate_kwargs)
+        self.prompt_key = prompt_key
 
     def _initialize_llm(self):
         if self.watermark_name in [""]:
@@ -84,7 +87,7 @@ class WatermarkTextPairsGenerator:
     def generate(self, examples: Any):
         with open(self.output_path, "w") as results_fp:
             for example in tqdm(examples):
-                prompt = example["prompt"]
+                prompt = example[self.prompt_key]
                 watermarked_text = self.watermark.generate_watermarked_text(prompt)
                 unwatermarked_text = self.watermark.generate_unwatermarked_text(prompt)
 

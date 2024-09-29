@@ -15,8 +15,11 @@ pip install git+https://github.com/yuchenlin/LLM-Blender.git
 ```
 
 
-### Commands
+### Commands Exp-1 (Reward Score Gap)
+This experiment uses the MarkLLM implementation.
+
 ```
+cd markllm
 bash sweep.sh
 
 # Run reward scorer
