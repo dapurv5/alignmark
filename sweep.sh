@@ -56,14 +56,14 @@ fi
 # done
 
 
-for temperature in $(seq 0.4 0.2 1.0); do
+for temperature in $(seq 0.8 0.2 1.0); do
     echo "Running temperature = $temperature ..."
     sleep 5
     python run_generate.py \
-        --exp_dir "/project/phan/av787/projs/watermarking/outputs/exp_003_sweep_temperature_hh-rlhf_1k" \
+        --exp_dir "/project/phan/av787/projs/watermarking/outputs/exp_004_sweep_temperature_hh-rlhf_1k" \
         --watermark_algorithm_default_config_path \
         "$HOME/MarkLLM/config/KGW.json" \
-        --model_name "meta-llama/Meta-Llama-3.1-8B-Instruct" \
+        --model_name "mistralai/Mistral-7B-Instruct-v0.3" \
         --watermark_name "KGW" \
         --dataset_name "Dahoas/full-hh-rlhf" \
         --temperature $temperature \

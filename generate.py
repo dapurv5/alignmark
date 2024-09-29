@@ -10,8 +10,9 @@ from tqdm import tqdm
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 from utils.transformers_config import TransformersConfig
 from vllm import LLM
-from vllm_utils import patch_watermark
 from watermark.auto_watermark import AutoWatermark
+
+from vllm_utils import patch_watermark
 
 
 class WatermarkTextPairsGenerator:
@@ -34,7 +35,7 @@ class WatermarkTextPairsGenerator:
         self.watermark = self._initialize_watermark(**generate_kwargs)
 
     def _initialize_llm(self):
-        if self.watermark_name in ["KGW"]:
+        if self.watermark_name in [""]:
             return LLM(
                 model=self.model_name,
                 trust_remote_code=True,
@@ -62,7 +63,7 @@ class WatermarkTextPairsGenerator:
             model=self.llm,
             tokenizer=self.tokenizer,
             vocab_size=len(vocab),
-            device="cpu",
+            device="cuda",  # Change this to "cpu" if you want to use vLLM.
             max_new_tokens=generate_kwargs.get("max_tokens", 200),
             min_length=generate_kwargs.get("min_length", 200),
             do_sample=generate_kwargs.get("do_sample", True),
@@ -75,7 +76,7 @@ class WatermarkTextPairsGenerator:
             algorithm_config=self.watermark_algorithm_config,
             transformers_config=transformers_config,
         )
-        if self.watermark_name in ["KGW"]:
+        if self.watermark_name in [""]:
             return patch_watermark(watermark, self.llm)
         else:
             watermark.config.device = "cuda" if torch.cuda.is_available() else "cpu"
