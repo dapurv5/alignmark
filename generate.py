@@ -1,17 +1,15 @@
 import json
-import os
 from typing import Any
 
 import torch
 import torch.distributed as dist
-
-# from liger_kernel.transformers import AutoLigerKernelForCausalLM
 from tqdm import tqdm
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 from utils.transformers_config import TransformersConfig
 from vllm import LLM
-from vllm_utils import patch_watermark
 from watermark.auto_watermark import AutoWatermark
+
+from vllm_utils import patch_watermark
 
 
 class WatermarkTextPairsGenerator:
