@@ -7,7 +7,6 @@ import fire
 import numpy as np
 import torch
 from datasets import load_dataset
-
 from generate import WatermarkTextPairsGenerator
 
 
@@ -27,7 +26,6 @@ def run_generator(
     examples: List[Any],
     output_path: str,
     watermark_algorithm_config: str,
-    prompt_key: str = "prompt",
     **generate_kwargs,
 ):
     generator = WatermarkTextPairsGenerator(
@@ -35,7 +33,6 @@ def run_generator(
         watermark_name,
         output_path,
         watermark_algorithm_config,
-        prompt_key,
         **generate_kwargs,
     )
     generator.generate(examples)
@@ -48,11 +45,10 @@ def main(
     model_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct",
     dataset_name: str = "Dahoas/full-hh-rlhf",
     watermark_name: str = "KGW",
-    watermark_algorithm_config_key: str = None,  # e.g. delta, can also be temp., top_p, etc.
+    watermark_algorithm_config_key: str = None,  # e.g. delta
     watermark_algorithm_config_val: float = None,  # e.g. 2.0
     limit_dataset_size: int = -1,
     seed: int = 42,
-    prompt_key: str = "prompt",
     **additional_generate_kwargs,
 ):
     seed_everything(seed)
@@ -89,9 +85,9 @@ def main(
             watermark_algorithm_default_config_path, "r"
         ) as algorithm_default_config_fp:
             algorithm_config_blob = json.load(algorithm_default_config_fp)
-        algorithm_config_blob[watermark_algorithm_config_key] = (
-            watermark_algorithm_config_val
-        )
+        algorithm_config_blob[
+            watermark_algorithm_config_key
+        ] = watermark_algorithm_config_val
         algorithm_config_path = os.path.join(
             exp_dir,
             f"{watermark_name}_{watermark_algorithm_config_key.replace('_', '')}_{algorithm_config_blob[watermark_algorithm_config_key]}.json",
@@ -126,7 +122,6 @@ def main(
         examples=dataset,
         output_path=output_path,
         watermark_algorithm_config=algorithm_config_path,
-        prompt_key=prompt_key,
         **generate_kwargs,
     )
 
