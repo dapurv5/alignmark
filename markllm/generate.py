@@ -10,8 +10,9 @@ from tqdm import tqdm
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 from utils.transformers_config import TransformersConfig
 from vllm import LLM
-from vllm_utils import patch_watermark
 from watermark.auto_watermark import AutoWatermark
+
+from vllm_utils import patch_watermark
 
 
 class WatermarkTextPairsGenerator:
