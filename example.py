@@ -5,10 +5,13 @@ from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 from wm_detectors import OpenaiDetector
 from wm_generators import OpenaiGenerator
 
-# model_name = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+model_name = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+# model_name = "meta-llama/Meta-Llama-3-8B-Instruct"
+# model_name = "meta-llama/Llama-3.2-3B-Instruct"
+# model_name = "google/gemma-2-9b-it"
 # model_name = "mistralai/Mistral-7B-Instruct-v0.3"
 # the code does not work with above models since they do not have pad_token set
-model_name = "NousResearch/Llama-2-7b-hf"
+# model_name = "NousResearch/Llama-2-7b-hf"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 config = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
 model = AutoModelForCausalLM.from_pretrained(

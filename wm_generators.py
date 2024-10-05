@@ -174,7 +174,8 @@ class OpenaiGenerator(WmGenerator):
                 seed = self.get_seed_rng(ngram_tokens[ii])
                 self.rng.manual_seed(seed)
                 # generate rs randomly between [0,1]
-                rs = torch.rand(self.tokenizer.vocab_size, generator=self.rng)  # n
+                vocab_size = logits.shape[-1]
+                rs = torch.rand(vocab_size, generator=self.rng)  # n
                 rs = rs.roll(-self.payload)
                 rs = torch.Tensor(rs).to(probs_sort.device)
                 rs = rs[probs_idx[ii]]
