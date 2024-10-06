@@ -16,10 +16,13 @@ class WmDetector:
         seed: int = 0,
         seeding: str = "hash",
         salt_key: int = 35317,
+        vocab_size: int = None,
     ):
         # model config
         self.tokenizer = tokenizer
-        self.vocab_size = self.tokenizer.vocab_size
+        self.vocab_size = (
+            vocab_size if vocab_size is not None else self.tokenizer.vocab_size
+        )
         # watermark config
         self.ngram = ngram
         self.salt_key = salt_key

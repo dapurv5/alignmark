@@ -242,7 +242,7 @@ class PFGenerator(WmGenerator):
 class MarylandGenerator(WmGenerator):
     """Generate text using LLaMA and Maryland's watemrarking method."""
 
-    def __init__(self, *args, gamma: float = 0.5, delta: float = 2.0, **kwargs):
+    def __init__(self, *args, gamma: float = 0.5, delta: float = 1.0, **kwargs):
         super().__init__(*args, **kwargs)
         self.gamma = gamma
         self.delta = delta
