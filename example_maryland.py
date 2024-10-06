@@ -2,8 +2,8 @@ import numpy as np
 import torch
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
-from wm_detectors import OpenaiDetector
-from wm_generators import OpenaiGenerator
+from wm_detectors import MarylandDetectorZ
+from wm_generators import MarylandGenerator
 
 model_name = "meta-llama/Meta-Llama-3.1-8B-Instruct"
 # model_name = "meta-llama/Meta-Llama-3-8B-Instruct"
@@ -21,9 +21,18 @@ model = AutoModelForCausalLM.from_pretrained(
     trust_remote_code=True,
     low_cpu_mem_usage=True,
     device_map="auto",
-    # use_flash_attention_2=True,
-    # attn_implementation="flash_attention_2",
+    attn_implementation="flash_attention_2",
 ).eval()
+
+
+def infer_vocab_size(model, tokenizer):
+    # Infer vocab size by passing a random text through the model
+    text = "Hello, how are you?"
+    inputs = tokenizer(text, return_tensors="pt").to(model.device)
+    outputs = model(**inputs)
+    vocab_size = outputs.logits.shape[-1]
+    return vocab_size
+
 
 # Set pad_token if it's not defined
 if tokenizer.pad_token is None:
@@ -32,7 +41,7 @@ if tokenizer.pad_token is None:
     model.config.pad_token_id = model.config.eos_token_id
 
 # Create an OpenaiGenerator instance (assuming it takes similar parameters)
-generator = OpenaiGenerator(model, tokenizer, ngram=4)
+generator = MarylandGenerator(model, tokenizer, ngram=4, gamma=0.5, delta=2.0)
 
 # Sample prompt
 prompt = "Explain the importance of renewable energy sources."
@@ -46,16 +55,20 @@ watermarked_texts = generator.generate(
 )
 
 print("Generated watermarked text:")
-print(watermarked_texts)
+print(watermarked_texts[0])
 print()
+print(watermarked_texts[1])
 
+vocab_size = infer_vocab_size(model, tokenizer)
 # Create an OpenaiDetector instance
-detector = OpenaiDetector(tokenizer, ngram=4)
+detector = MarylandDetectorZ(
+    tokenizer, ngram=4, gamma=0.5, delta=2.0, vocab_size=vocab_size
+)
 
 
 # Custom detect method
-def detect(detector, texts, threshold=0.05):
-    scores = detector.get_scores_by_t(texts)
+def detect(detector, text: str, threshold=0.05):
+    scores = detector.get_scores_by_t([text])
     pvalues = detector.get_pvalues(scores)
 
     # Assuming we're interested in the first payload (index 0)
@@ -70,8 +83,15 @@ def detect(detector, texts, threshold=0.05):
 
 
 # Detect watermark in the generated text
-detection_result = detect(detector, watermarked_texts)
+detection_result = detect(detector, watermarked_texts[0])
 
 print("Watermark detection result:")
 print(f"Is watermarked: {detection_result['is_watermarked']}")
-print(f"P-value: {detection_result['pvalue']:.4f}")
+print(f"P-value: {detection_result['pvalue']}")
+
+print("-" * 100)
+detection_result = detect(detector, watermarked_texts[1])
+
+print("Watermark detection result:")
+print(f"Is watermarked: {detection_result['is_watermarked']}")
+print(f"P-value: {detection_result['pvalue']}")
