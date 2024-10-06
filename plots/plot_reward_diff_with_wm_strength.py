@@ -13,26 +13,28 @@ def read_jsonl(file_path: str) -> list[dict]:
         return [json.loads(line) for line in f]
 
 
-def parse_filename(filename: str) -> tuple[float, str, str, str, str]:
+def parse_filename(filename: str) -> dict:
     filename_parts = filename.split("_")
     dataset_name = filename_parts[1]
     model_name = filename_parts[2]
     watermark_type = filename_parts[3]
-    wm_strength_param_name = filename_parts[4]
-    wm_strength_param = float(filename_parts[5])
-    return (
-        wm_strength_param,  # E.g. 2.0, 2.5, 3.0
-        wm_strength_param_name,  # E.g. delta
-        dataset_name,
-        model_name,
-        watermark_type,
-    )
+    params = {}
+    for part in filename_parts[4:]:
+        if part.startswith(("delta", "gamma", "ngram", "seed", "temperature")):
+            key, value = part.split("_")
+            params[key] = float(value) if key != "ngram" else int(value)
+
+    return {
+        "dataset_name": dataset_name,
+        "model_name": model_name,
+        "watermark_type": watermark_type,
+    } | params
 
 
 def process_files(
     input_dir: str,
     watermark_type_to_plot: str,
-    wm_strength_param_name_to_plot: str,
+    param_name_to_plot: str,
 ) -> dict[tuple[str, str], list[tuple[float, list[float], list[float]]]]:
     """
     Process all the files in the input directory and return a dictionary
@@ -42,7 +44,7 @@ def process_files(
     Args:
         input_dir (str): The directory containing the reward files.
         watermark_type_to_plot (str): The type of watermark to plot.
-        wm_strength_param_name_to_plot (str): The name of the watermark strength parameter.
+        param_name_to_plot (str): The name of the watermark strength parameter.
     Returns:
         dict[tuple[str, str], list[tuple[float, list[float], list[float]]]]: A dictionary
         with (model_name, dataset_name) as keys and a list of tuples containing
@@ -52,27 +54,29 @@ def process_files(
     for filename in os.listdir(input_dir):
         if filename.endswith("_rewards.jsonl"):
             file_path = os.path.join(input_dir, filename)
-            (
-                wm_strength_param,
-                wm_strength_param_name,
-                dataset_name,
-                model_name,
-                watermark_type,
-            ) = parse_filename(filename)
+            parsed_info = parse_filename(filename)
+
             if (
-                wm_strength_param is not None
-                and wm_strength_param_name == wm_strength_param_name_to_plot
-                and watermark_type == watermark_type_to_plot
+                param_name_to_plot in parsed_info
+                and parsed_info["watermark_type"] == watermark_type_to_plot
             ):
+                wm_strength_param = parsed_info[param_name_to_plot]
+                dataset_name = parsed_info["dataset_name"]
+                model_name = parsed_info["model_name"]
+
                 blobs = read_jsonl(file_path)
-                watermarked = [blob["watermarked_text_reward_score"] for blob in blobs]
-                unwatermarked = [
+                watermarked_sc = [
+                    blob["watermarked_text_reward_score"] for blob in blobs
+                ]
+                unwatermarked_sc = [
                     blob["unwatermarked_text_reward_score"] for blob in blobs
                 ]
                 key = (model_name, dataset_name)
                 if key not in data:
                     data[key] = []
-                data[key].append((float(wm_strength_param), watermarked, unwatermarked))
+                data[key].append(
+                    (float(wm_strength_param), watermarked_sc, unwatermarked_sc)
+                )
 
     # Sort the lists for each key by wm_strength_param
     for key in data:
@@ -91,12 +95,12 @@ def get_short_model_name(model_name: str) -> str:
 def plot_reward_diff(
     input_dir: str,
     output_file: str = "rewards_plot.pdf",
-    watermark_type_to_plot: str = "KGW",
-    wm_strength_param_name_to_plot: str = "delta",
+    watermark_type_to_plot: str = "openai",  # openai, maryland
+    param_name_to_plot: str = "temperature",
 ):
-    data: dict[
-        tuple[str, str], list[tuple[float, list[float], list[float]]]
-    ] = process_files(input_dir, watermark_type_to_plot, wm_strength_param_name_to_plot)
+    data: dict[tuple[str, str], list[tuple[float, list[float], list[float]]]] = (
+        process_files(input_dir, watermark_type_to_plot, param_name_to_plot)
+    )
     with prp.get_context(layout=prp.Layout.ICML, single_col=True) as (
         fig,
         axs,
@@ -153,7 +157,7 @@ def plot_reward_diff(
             #     alpha=0.1,
             # )
 
-        axs.set_xlabel(f"{wm_strength_param_name_to_plot} →", fontsize=6)
+        axs.set_xlabel(f"{param_name_to_plot} →", fontsize=6)
         axs.set_ylabel("Reward Score", fontsize=6, labelpad=3)
         axs.tick_params(axis="both", which="major", labelsize=5)
         axs.set_title("Reward Scores with Temperature", fontsize=6)
@@ -169,8 +173,8 @@ def plot_reward_diff(
 def main(
     input_dir: str,
     output_file: str = "rewards_plot.pdf",
-    watermark_type_to_plot: str = "KGW",
-    wm_strength_param_name_to_plot: str = "delta",
+    watermark_type_to_plot: str = "openai",
+    param_name_to_plot: str = "temperature",
 ):
     output_dir = os.path.dirname(output_file)
     if not os.path.exists(output_dir):
@@ -179,7 +183,7 @@ def main(
         input_dir,
         output_file,
         watermark_type_to_plot,
-        wm_strength_param_name_to_plot,
+        param_name_to_plot,
     )
 
 

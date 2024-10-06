@@ -81,7 +81,7 @@ class WmGenerator:
 
         tokens = torch.full((bsz, total_len), self.pad_id).to(self.model.device).long()
         for k, t in enumerate(prompt_tokens):
-            tokens[k, : len(t)] = torch.tensor(t).long()
+            tokens[k, : min(len(t), total_len)] = torch.tensor(t[:total_len]).long()
         input_text_mask = tokens != self.pad_id
 
         start_pos = min_prompt_size
