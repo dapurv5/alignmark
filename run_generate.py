@@ -45,15 +45,26 @@ def main(
     exp_dir: str,
     model_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct",
     dataset_name: str = "Dahoas/full-hh-rlhf",
+    dataset_subset_name: str = "",
+    dataset_split: str = "test",
     watermark_name: str = "openai",  # openai, maryland, no_watermark
     limit_dataset_size: int = -1,
     seed: int = 42,
     **kwargs,
 ):
     seed_everything(seed)
-    dataset = load_dataset(dataset_name, trust_remote_code=True)
-    dataset = dataset["test"] if "test" in dataset else dataset
-    if limit_dataset_size > 0:
+    if dataset_subset_name:
+        dataset = load_dataset(
+            dataset_name, dataset_subset_name, trust_remote_code=True
+        )
+    else:
+        dataset = load_dataset(dataset_name, trust_remote_code=True)
+    if dataset_split in dataset:
+        dataset = dataset[dataset_split]
+    else:
+        raise ValueError(f"Dataset split {dataset_split} not found")
+
+    if limit_dataset_size > 0 and hasattr(dataset, "select"):
         dataset = dataset.select(range(limit_dataset_size))
     os.makedirs(exp_dir, exist_ok=True)
 

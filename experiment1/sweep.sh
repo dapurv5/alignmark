@@ -28,6 +28,7 @@ for temperature in $(seq 0.2 0.2 1.0); do
         --exp_dir "/project/phan/av787/projs/watermarking/outputs/exp_005_sweep_temperature_hh-rlhf_1k" \
         --model_name "mistralai/Mistral-7B-Instruct-v0.3" \
         --dataset_name "Dahoas/full-hh-rlhf" \
+        --dataset_split "test" \
         --text_field "prompt" \
         --watermark_name "maryland" \
         --delta 2.0 \
