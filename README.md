@@ -22,10 +22,10 @@ bash experiment1/sweep.sh
 python run_reward_scorer.py --input_path /project/phan/av787/projs/watermarking/outputs/exp_005_sweep_temperature_hh-rlhf_1k --output_path /project/phan/av787/projs/watermarking/outputs/exp_005_sweep_temperature_hh-rlhf_1k
 
 # Plotting
-python $HOME/MyCode/anahata/anahata-python3/anahata/play/ml_research/watermark-analysis/plots/plot_reward_diff_with_wm_strength.py --input_dir $HOME/mint/watermarking-analysis/exp_001_sweep_delta_hh-rlhf_1k  --watermark_type_to_plot KGW --wm_strength_param_name_to_plot delta --output_file $HOME/mint/watermarking-analysis/exp_001_sweep_delta_hh-rlhf_1k/plots/rewards_gap_kgw_delta.pdf
+python $HOME/alignmark/plots/plot_reward_with_param.py --input_dir /Users/verapurv/mint/watermarking-analysis/exp_005_sweep_temperature_hh-rlhf_1k  --model_name_to_plot Meta-Llama-3.1-8B-Instruct --param_name_to_plot temperature --output_file /Users/verapurv/mint/watermarking-analysis/exp_005_sweep_temperature_hh-rlhf_1k/plots/rewards_llama_temp.pdf
 
 
-### EXPERIMENT 1 (Truthfulness)
+### EXPERIMENT 2 (Truthfulness)
 
 bash experiment2/sweep.sh
 

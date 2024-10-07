@@ -35,7 +35,7 @@ def parse_filename(filename: str) -> dict:
 
 def process_files(
     input_dir: str,
-    watermark_type_to_plot: str,
+    model_name_to_plot: str,
     param_name_to_plot: str,
 ) -> dict[tuple[str, str], list[tuple[float, list[float], list[float]]]]:
     """
@@ -57,14 +57,13 @@ def process_files(
         if filename.endswith("_rewards.jsonl"):
             file_path = os.path.join(input_dir, filename)
             parsed_info = parse_filename(filename)
-
             if (
                 param_name_to_plot in parsed_info
-                and parsed_info["watermark_type"] == watermark_type_to_plot
+                and parsed_info["model_name"] == model_name_to_plot
             ):
                 param_name = parsed_info[param_name_to_plot]
                 dataset_name = parsed_info["dataset_name"]
-                model_name = parsed_info["model_name"]
+                watermark_type = parsed_info["watermark_type"]
 
                 blobs = read_jsonl(file_path)
                 watermarked_sc = [
@@ -73,7 +72,7 @@ def process_files(
                 unwatermarked_sc = [
                     blob["unwatermarked_text_reward_score"] for blob in blobs
                 ]
-                key = (model_name, dataset_name)
+                key = (watermark_type, dataset_name)
                 if key not in data:
                     data[key] = []
                 data[key].append((float(param_name), watermarked_sc, unwatermarked_sc))
@@ -81,7 +80,6 @@ def process_files(
     # Sort the lists for each key by param_name
     for key in data:
         data[key] = sorted(data[key], key=lambda x: x[0])
-
     return data
 
 
@@ -92,14 +90,21 @@ def get_short_model_name(model_name: str) -> str:
     }.get(model_name, model_name)
 
 
-def plot_reward_diff(
+def get_short_watermark_name(watermark_type: str) -> str:
+    return {
+        "maryland": "KGW (Distort)",
+        "openai": "Gumbel (Dist-Free)",
+    }.get(watermark_type, watermark_type)
+
+
+def plot_rewards(
     input_dir: str,
     output_file: str = "rewards_plot.pdf",
-    watermark_type_to_plot: str = "openai",  # openai, maryland
+    model_name_to_plot: str = "Mistral-7B-Instruct-v0.3",  # Mistral-7B-Instruct-v0.3, Meta-Llama-3.1-8B-Instruct
     param_name_to_plot: str = "temperature",
 ):
     data: dict[tuple[str, str], list[tuple[float, list[float], list[float]]]] = (
-        process_files(input_dir, watermark_type_to_plot, param_name_to_plot)
+        process_files(input_dir, model_name_to_plot, param_name_to_plot)
     )
     with prp.get_context(layout=prp.Layout.ICML, single_col=True) as (
         fig,
@@ -109,19 +114,45 @@ def plot_reward_diff(
         colors = cycle(
             ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"]
         )  # Colors chosen for clarity and distinction in publication
-        for (model_name, dataset_name), values in data.items():
-            print(f"Reading data for {model_name} on {dataset_name} and plotting")
+        markers = cycle(["o", "s", "D", "P", "X", "v", "^", "<", ">", "1", "2", "3"])
+        # Plot unwatermarked scores first by averaging over all watermark_types
+        # Based on plots these lines mostly coincide across watermark_types because the
+        # text was generated from the same model without any watermark
+        unwm_means = []
+        for (watermark_type, dataset_name), values in data.items():
+            wm_strengths, _, unwatermarked_rewards = zip(*values)
+            unwm_means.append([np.mean(u) for u in unwatermarked_rewards])
+        color = next(colors)
+        marker = next(markers)
+        # Now average over all watermark_types
+        unwm_means = np.mean(unwm_means, axis=0)
+        axs.plot(
+            wm_strengths,
+            unwm_means,
+            label="Unwatermarked",
+            marker=marker,
+            markersize=2,
+            markerfacecolor="none",
+            markeredgecolor=color,
+            color=color,
+            alpha=0.7,
+            markeredgewidth=1,
+            linestyle="dashed",
+        )
+
+        for (watermark_type, dataset_name), values in data.items():
+            print(f"Reading data for {watermark_type} on {dataset_name} and plotting")
             wm_strengths, watermarked_rewards, unwatermarked_rewards = zip(*values)
 
             color = next(colors)
-
+            marker = next(markers)
             # Plot watermarked scores
             wm_means = [np.mean(w) for w in watermarked_rewards]
             axs.plot(
                 wm_strengths,
                 wm_means,
-                label=f"{get_short_model_name(model_name)} (W)",
-                marker="o",
+                label=f"{get_short_watermark_name(watermark_type)}",
+                marker=marker,
                 markersize=2,
                 markerfacecolor=color,
                 markeredgecolor=color,
@@ -130,40 +161,14 @@ def plot_reward_diff(
                 markeredgewidth=1,
                 linestyle="-",
             )
-            # axs.fill_between(
-            #     wm_strengths,
-            #     [np.mean(w) - np.std(w) for w in watermarked_rewards],
-            #     [np.mean(w) + np.std(w) for w in watermarked_rewards],
-            #     color=color,
-            #     alpha=0.2,
-            # )
-            unwm_means = [np.mean(u) for u in unwatermarked_rewards]
-            # Plot unwatermarked scores
-            axs.plot(
-                wm_strengths,
-                unwm_means,
-                label=f"{get_short_model_name(model_name)} (U)",
-                marker="s",
-                markersize=2,
-                markerfacecolor="none",
-                markeredgecolor=color,
-                color=color,
-                alpha=0.7,
-                markeredgewidth=1,
-                linestyle="dashed",
-            )
-            # axs.fill_between(
-            #     wm_strengths,
-            #     [np.mean(u) - np.std(u) for u in unwatermarked_rewards],
-            #     [np.mean(u) + np.std(u) for u in unwatermarked_rewards],
-            #     color=color,
-            #     alpha=0.1,
-            # )
 
         axs.set_xlabel(f"{param_name_to_plot} →", fontsize=6)
         axs.set_ylabel("Reward Score", fontsize=6, labelpad=3)
         axs.tick_params(axis="both", which="major", labelsize=5)
-        axs.set_title("Reward Scores with Temperature", fontsize=6)
+        axs.set_title(
+            f"Reward Scores with Temperature for {get_short_model_name(model_name_to_plot)}",
+            fontsize=6,
+        )
         axs.legend(loc="best", fontsize=5)
 
         axs.set_xlim(left=0.2, right=1)
@@ -176,16 +181,18 @@ def plot_reward_diff(
 def main(
     input_dir: str,
     output_file: str = "rewards_plot.pdf",
-    watermark_type_to_plot: str = "openai",
+    model_name_to_plot: str = "gpt-3",
     param_name_to_plot: str = "temperature",
 ):
     output_dir = os.path.dirname(output_file)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    plot_reward_diff(
+
+    # Assuming plot_rewards is a function that can handle multiple watermark types
+    plot_rewards(
         input_dir,
         output_file,
-        watermark_type_to_plot,
+        model_name_to_plot,
         param_name_to_plot,
     )
 
