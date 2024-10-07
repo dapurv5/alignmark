@@ -19,9 +19,11 @@ def parse_filename(filename: str) -> dict:
     model_name = filename_parts[2]
     watermark_type = filename_parts[3]
     params = {}
+    idx = 3
     for part in filename_parts[4:]:
+        idx += 1
         if part.startswith(("delta", "gamma", "ngram", "seed", "temperature")):
-            key, value = part.split("_")
+            key, value = part, filename_parts[idx + 1]
             params[key] = float(value) if key != "ngram" else int(value)
 
     return {
@@ -39,16 +41,16 @@ def process_files(
     """
     Process all the files in the input directory and return a dictionary
     with (model_name, dataset_name) as keys and a list of tuples containing
-    the wm_strength_param, watermarked reward scores, and unwatermarked reward scores.
+    the param_name, watermarked reward scores, and unwatermarked reward scores.
 
     Args:
         input_dir (str): The directory containing the reward files.
         watermark_type_to_plot (str): The type of watermark to plot.
-        param_name_to_plot (str): The name of the watermark strength parameter.
+        param_name_to_plot (str): The name of the parameter which varies.
     Returns:
         dict[tuple[str, str], list[tuple[float, list[float], list[float]]]]: A dictionary
         with (model_name, dataset_name) as keys and a list of tuples containing
-        the wm_strength_param, watermarked reward scores, and unwatermarked reward scores.
+        the param_name, watermarked reward scores, and unwatermarked reward scores.
     """
     data: dict[tuple[str, str], list[tuple[float, list[float], list[float]]]] = {}
     for filename in os.listdir(input_dir):
@@ -60,7 +62,7 @@ def process_files(
                 param_name_to_plot in parsed_info
                 and parsed_info["watermark_type"] == watermark_type_to_plot
             ):
-                wm_strength_param = parsed_info[param_name_to_plot]
+                param_name = parsed_info[param_name_to_plot]
                 dataset_name = parsed_info["dataset_name"]
                 model_name = parsed_info["model_name"]
 
@@ -74,11 +76,9 @@ def process_files(
                 key = (model_name, dataset_name)
                 if key not in data:
                     data[key] = []
-                data[key].append(
-                    (float(wm_strength_param), watermarked_sc, unwatermarked_sc)
-                )
+                data[key].append((float(param_name), watermarked_sc, unwatermarked_sc))
 
-    # Sort the lists for each key by wm_strength_param
+    # Sort the lists for each key by param_name
     for key in data:
         data[key] = sorted(data[key], key=lambda x: x[0])
 
@@ -105,8 +105,10 @@ def plot_reward_diff(
         fig,
         axs,
     ):
-        plt.rcParams.update({"font.size": 6})
-        colors = cycle(plt.cm.tab10.colors)  # Create a color cycle
+        # plt.rcParams.update({"font.size": 6})
+        colors = cycle(
+            ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"]
+        )  # Colors chosen for clarity and distinction in publication
         for (model_name, dataset_name), values in data.items():
             print(f"Reading data for {model_name} on {dataset_name} and plotting")
             wm_strengths, watermarked_rewards, unwatermarked_rewards = zip(*values)
@@ -114,9 +116,10 @@ def plot_reward_diff(
             color = next(colors)
 
             # Plot watermarked scores
+            wm_means = [np.mean(w) for w in watermarked_rewards]
             axs.plot(
                 wm_strengths,
-                [np.mean(w) for w in watermarked_rewards],
+                wm_means,
                 label=f"{get_short_model_name(model_name)} (W)",
                 marker="o",
                 markersize=2,
@@ -134,11 +137,11 @@ def plot_reward_diff(
             #     color=color,
             #     alpha=0.2,
             # )
-
+            unwm_means = [np.mean(u) for u in unwatermarked_rewards]
             # Plot unwatermarked scores
             axs.plot(
                 wm_strengths,
-                [np.mean(u) for u in unwatermarked_rewards],
+                unwm_means,
                 label=f"{get_short_model_name(model_name)} (U)",
                 marker="s",
                 markersize=2,
@@ -147,7 +150,7 @@ def plot_reward_diff(
                 color=color,
                 alpha=0.7,
                 markeredgewidth=1,
-                linestyle="--",
+                linestyle="dashed",
             )
             # axs.fill_between(
             #     wm_strengths,
