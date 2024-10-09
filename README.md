@@ -29,5 +29,6 @@ python $HOME/alignmark/plots/plot_reward_with_param.py --input_dir /Users/verapu
 
 bash experiment2/sweep.sh
 
-
+# Run trutfulness scorer
+python run_truthfulness_scorer.py --input_path /project/phan/av787/projs/watermarking/outputs/exp_006_sweep_temperature_truthful_qa --output_path /project/phan/av787/projs/watermarking/outputs/exp_006_sweep_temperature_truthful_qa
 ```

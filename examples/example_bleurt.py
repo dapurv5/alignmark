@@ -19,8 +19,14 @@ tokenizer = BleurtTokenizer.from_pretrained("lucadiliello/BLEURT-20-D12")
 
 model.eval()
 
-references = ["a bird chirps by the window", "this is a random sentence"]
-candidates = ["a bird chirps by the window", "this looks like a random sentence"]
+references = [
+    "a bird chirps by the window",
+    "this is a random sentence",
+]
+candidates = [
+    "a bird chirps by the window",
+    "this looks like a random sentence",
+]
 
 with torch.no_grad():
     inputs = tokenizer(references, candidates, padding="longest", return_tensors="pt")
