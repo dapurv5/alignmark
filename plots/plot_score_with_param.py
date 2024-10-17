@@ -37,6 +37,7 @@ def process_files(
     input_dir: str,
     model_name_to_plot: str,
     param_name_to_plot: str,
+    score_name: str,
 ) -> dict[tuple[str, str], list[tuple[float, list[float], list[float]]]]:
     """
     Process all the files in the input directory and return a dictionary
@@ -54,9 +55,14 @@ def process_files(
     """
     data: dict[tuple[str, str], list[tuple[float, list[float], list[float]]]] = {}
     for filename in os.listdir(input_dir):
-        if filename.endswith("_rewards.jsonl"):
+        if "truthful_qa" in filename:
+            filename_ = filename.replace(
+                "truthful_qa", "truthfulqa"
+            )  # no _ allowed in dataset name
+        if filename.endswith(f"_{score_name}.jsonl"):
+            print(f"Processing {filename}")
             file_path = os.path.join(input_dir, filename)
-            parsed_info = parse_filename(filename)
+            parsed_info = parse_filename(filename_)
             if (
                 param_name_to_plot in parsed_info
                 and parsed_info["model_name"] == model_name_to_plot
@@ -67,10 +73,10 @@ def process_files(
 
                 blobs = read_jsonl(file_path)
                 watermarked_sc = [
-                    blob["watermarked_text_reward_score"] for blob in blobs
+                    blob[f"watermarked_{score_name}_score"] for blob in blobs
                 ]
                 unwatermarked_sc = [
-                    blob["unwatermarked_text_reward_score"] for blob in blobs
+                    blob[f"unwatermarked_{score_name}_score"] for blob in blobs
                 ]
                 key = (watermark_type, dataset_name)
                 if key not in data:
@@ -97,14 +103,15 @@ def get_short_watermark_name(watermark_type: str) -> str:
     }.get(watermark_type, watermark_type)
 
 
-def plot_rewards(
+def plot_scores(
     input_dir: str,
     output_file: str = "rewards_plot.pdf",
     model_name_to_plot: str = "Mistral-7B-Instruct-v0.3",  # Mistral-7B-Instruct-v0.3, Meta-Llama-3.1-8B-Instruct
     param_name_to_plot: str = "temperature",
+    score_name: str = "rewards",
 ):
     data: dict[tuple[str, str], list[tuple[float, list[float], list[float]]]] = (
-        process_files(input_dir, model_name_to_plot, param_name_to_plot)
+        process_files(input_dir, model_name_to_plot, param_name_to_plot, score_name)
     )
     with prp.get_context(layout=prp.Layout.ICML, single_col=True) as (
         fig,
@@ -166,7 +173,7 @@ def plot_rewards(
         axs.set_ylabel("Reward Score", fontsize=6, labelpad=3)
         axs.tick_params(axis="both", which="major", labelsize=5)
         axs.set_title(
-            f"Reward Scores with Temperature for {get_short_model_name(model_name_to_plot)}",
+            f"{score_name.capitalize()} Scores with Temperature for {get_short_model_name(model_name_to_plot)}",
             fontsize=6,
         )
         axs.legend(loc="best", fontsize=5)
@@ -183,17 +190,15 @@ def main(
     output_file: str = "rewards_plot.pdf",
     model_name_to_plot: str = "gpt-3",
     param_name_to_plot: str = "temperature",
+    score_name: str = "rewards",  # or "truthfulness"
 ):
     output_dir = os.path.dirname(output_file)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    # Assuming plot_rewards is a function that can handle multiple watermark types
-    plot_rewards(
-        input_dir,
-        output_file,
-        model_name_to_plot,
-        param_name_to_plot,
+    # Assuming plot_score is a function that can handle multiple watermark types
+    plot_scores(
+        input_dir, output_file, model_name_to_plot, param_name_to_plot, score_name
     )
 
 
