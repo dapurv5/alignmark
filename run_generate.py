@@ -69,7 +69,7 @@ def main(
     os.makedirs(exp_dir, exist_ok=True)
 
     def simple_name(name):
-        return name.split("/")[-1]
+        return name.replace("_", "").split("/")[-1]  # name cannot contain underscores
 
     # Generate the output file name including temperature
     run_name = (
