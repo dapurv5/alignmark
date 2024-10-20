@@ -2,6 +2,10 @@ import json
 import logging
 from abc import abstractmethod
 
+import nltk
+
+nltk.download("punkt")
+
 import torch
 from bleurt_pytorch import (
     BleurtConfig,
@@ -12,6 +16,25 @@ from tqdm import tqdm
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def cleanup(data: dict):
+    # Remove the question from the generated text
+    if "question" in data:
+        data["watermarked_text"] = (
+            data["watermarked_text"].replace(data["question"], "").strip()
+        )
+        data["unwatermarked_text"] = (
+            data["unwatermarked_text"].replace(data["question"], "").strip()
+        )
+
+    # Only keep the first sentence of the generated text
+    def get_first_sentence(text):
+        sentences = nltk.sent_tokenize(text)
+        return sentences[0] if sentences else text
+
+    data["watermarked_text"] = get_first_sentence(data["watermarked_text"])
+    data["unwatermarked_text"] = get_first_sentence(data["unwatermarked_text"])
 
 
 class TruthfulnessScorerBase:
@@ -30,6 +53,7 @@ class TruthfulnessScorerBase:
             batch = self._initialize_batch()
             for line in tqdm(input_fp):
                 data = json.loads(line)
+                cleanup(data)
                 self._add_to_batch(batch, data)
                 if len(batch["watermarked_texts"]) == self.batch_size:
                     self._process_batch(batch, output_fp)
