@@ -45,16 +45,16 @@ def process_files(
     """
     Process all the files in the input directory and return a dictionary
     with (watermark_type, dataset_name) as keys and a list of tuples containing
-    the param_name, watermarked reward scores, and unwatermarked reward scores.
+    the param_name, watermarked scores, and unwatermarked scores.
 
     Args:
-        input_dir (str): The directory containing the reward files.
-        watermark_type_to_plot (str): The type of watermark to plot.
+        input_dir (str): The directory containing the score files.
+        model_name_to_plot (str): The name of the model to plot.
         param_name_to_plot (str): The name of the parameter which varies.
     Returns:
         dict[tuple[str, str], dict[str, list[tuple[float, list[float], list[float]]]]: A dictionary
         with (watermark_type, dataset_name) as keys and a list of tuples containing
-        the param_name, watermarked reward scores, and unwatermarked reward scores.
+        the param_name, watermarked scores, and unwatermarked scores.
     """
     data: dict[
         tuple[str, str], dict[str, list[tuple[float, list[float], list[float]]]]
@@ -137,8 +137,8 @@ def plot_scores(
         unwm_means = defaultdict(list)
         for (watermark_type, dataset_name), _ in data.items():
             for seed, values in data[(watermark_type, dataset_name)].items():
-                wm_strengths, _, unwatermarked_rewards = zip(*values)
-                unwm_means[seed].append([np.mean(u) for u in unwatermarked_rewards])
+                wm_strengths, _, unwatermarked_scores = zip(*values)
+                unwm_means[seed].append([np.mean(u) for u in unwatermarked_scores])
         color = next(colors)
         marker = next(markers)
         # Now average over all seeds
@@ -167,15 +167,12 @@ def plot_scores(
             # Average over all seeds
             wm_means = defaultdict(list)
             for seed, values in data[(watermark_type, dataset_name)].items():
-                wm_strengths, watermarked_rewards, unwatermarked_rewards = zip(*values)
-                wm_means[seed].append([np.mean(w) for w in watermarked_rewards])
+                wm_strengths, watermarked_scores, _ = zip(*values)
+                wm_means[seed].append([np.mean(w) for w in watermarked_scores])
             wm_means_avg = np.mean(list(wm_means.values()), axis=0)
             wm_stds = np.std(list(wm_means.values()), axis=0)
             wm_means_avg = wm_means_avg.squeeze()
             wm_stds = wm_stds.squeeze()
-            import pdb
-
-            pdb.set_trace()
             color = next(colors)
             marker = next(markers)
             # Plot watermarked scores
@@ -194,7 +191,7 @@ def plot_scores(
             )
 
         axs.set_xlabel(f"{param_name_to_plot} →", fontsize=6)
-        axs.set_ylabel("Reward Score", fontsize=6, labelpad=3)
+        axs.set_ylabel(f"{score_name.capitalize()} Score", fontsize=6, labelpad=3)
         axs.tick_params(axis="both", which="major", labelsize=5)
         axs.set_title(
             f"{score_name.capitalize()} Scores with Temperature for {get_short_model_name(model_name_to_plot)}",
