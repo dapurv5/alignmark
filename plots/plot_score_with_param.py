@@ -1,5 +1,6 @@
 import json
 import os
+from collections import defaultdict
 from itertools import cycle
 
 import matplotlib.pyplot as plt
@@ -18,11 +19,12 @@ def parse_filename(filename: str) -> dict:
     dataset_name = filename_parts[1]
     model_name = filename_parts[2]
     watermark_type = filename_parts[3]
+    seed = filename_parts[4]
     params = {}
-    idx = 3
-    for part in filename_parts[4:]:
+    idx = 4
+    for part in filename_parts[5:]:
         idx += 1
-        if part.startswith(("delta", "gamma", "ngram", "seed", "temperature")):
+        if part.startswith(("delta", "gamma", "ngram", "temperature")):
             key, value = part, filename_parts[idx + 1]
             params[key] = float(value) if key != "ngram" else int(value)
 
@@ -30,6 +32,7 @@ def parse_filename(filename: str) -> dict:
         "dataset_name": dataset_name,
         "model_name": model_name,
         "watermark_type": watermark_type,
+        "seed": seed,
     } | params
 
 
@@ -38,10 +41,10 @@ def process_files(
     model_name_to_plot: str,
     param_name_to_plot: str,
     score_name: str,
-) -> dict[tuple[str, str], list[tuple[float, list[float], list[float]]]]:
+) -> dict[tuple[str, str], dict[str, list[tuple[float, list[float], list[float]]]]]:
     """
     Process all the files in the input directory and return a dictionary
-    with (model_name, dataset_name) as keys and a list of tuples containing
+    with (watermark_type, dataset_name) as keys and a list of tuples containing
     the param_name, watermarked reward scores, and unwatermarked reward scores.
 
     Args:
@@ -49,11 +52,13 @@ def process_files(
         watermark_type_to_plot (str): The type of watermark to plot.
         param_name_to_plot (str): The name of the parameter which varies.
     Returns:
-        dict[tuple[str, str], list[tuple[float, list[float], list[float]]]]: A dictionary
-        with (model_name, dataset_name) as keys and a list of tuples containing
+        dict[tuple[str, str], dict[str, list[tuple[float, list[float], list[float]]]]: A dictionary
+        with (watermark_type, dataset_name) as keys and a list of tuples containing
         the param_name, watermarked reward scores, and unwatermarked reward scores.
     """
-    data: dict[tuple[str, str], list[tuple[float, list[float], list[float]]]] = {}
+    data: dict[
+        tuple[str, str], dict[str, list[tuple[float, list[float], list[float]]]]
+    ] = {}
     for filename in os.listdir(input_dir):
         if "truthful_qa" in filename:
             filename_ = filename.replace(
@@ -67,9 +72,10 @@ def process_files(
                 param_name_to_plot in parsed_info
                 and parsed_info["model_name"] == model_name_to_plot
             ):
-                param_name = parsed_info[param_name_to_plot]
+                param_value = parsed_info[param_name_to_plot]
                 dataset_name = parsed_info["dataset_name"]
                 watermark_type = parsed_info["watermark_type"]
+                seed = parsed_info["seed"]
 
                 blobs = read_jsonl(file_path)
                 watermarked_sc = [
@@ -80,12 +86,15 @@ def process_files(
                 ]
                 key = (watermark_type, dataset_name)
                 if key not in data:
-                    data[key] = []
-                data[key].append((float(param_name), watermarked_sc, unwatermarked_sc))
+                    data[key] = {}
+                if seed not in data[key]:
+                    data[key][seed] = []
+                data[key][seed].append((param_value, watermarked_sc, unwatermarked_sc))
 
-    # Sort the lists for each key by param_name
+    # Sort the lists for each key, seed by param_name
     for key in data:
-        data[key] = sorted(data[key], key=lambda x: x[0])
+        for seed in data[key]:
+            data[key][seed] = sorted(data[key][seed], key=lambda x: x[0])
     return data
 
 
@@ -110,9 +119,9 @@ def plot_scores(
     param_name_to_plot: str = "temperature",
     score_name: str = "rewards",
 ):
-    data: dict[tuple[str, str], list[tuple[float, list[float], list[float]]]] = (
-        process_files(input_dir, model_name_to_plot, param_name_to_plot, score_name)
-    )
+    data: dict[
+        tuple[str, str], dict[str, list[tuple[float, list[float], list[float]]]]
+    ] = process_files(input_dir, model_name_to_plot, param_name_to_plot, score_name)
     with prp.get_context(layout=prp.Layout.ICML, single_col=True) as (
         fig,
         axs,
@@ -125,17 +134,23 @@ def plot_scores(
         # Plot unwatermarked scores first by averaging over all watermark_types
         # Based on plots these lines mostly coincide across watermark_types because the
         # text was generated from the same model without any watermark
-        unwm_means = []
-        for (watermark_type, dataset_name), values in data.items():
-            wm_strengths, _, unwatermarked_rewards = zip(*values)
-            unwm_means.append([np.mean(u) for u in unwatermarked_rewards])
+        unwm_means = defaultdict(list)
+        for (watermark_type, dataset_name), _ in data.items():
+            for seed, values in data[(watermark_type, dataset_name)].items():
+                wm_strengths, _, unwatermarked_rewards = zip(*values)
+                unwm_means[seed].append([np.mean(u) for u in unwatermarked_rewards])
         color = next(colors)
         marker = next(markers)
+        # Now average over all seeds
+        unwm_means_avg = np.mean(list(unwm_means.values()), axis=0)
         # Now average over all watermark_types
-        unwm_means = np.mean(unwm_means, axis=0)
+        unwm_means_avg_avg = np.mean(unwm_means_avg, axis=0)
+        # Compute the standard deviation
+        unwm_stds = np.std(list(unwm_means.values()), axis=0)
+        unwm_stds_avg = np.mean(unwm_stds, axis=0)
         axs.plot(
             wm_strengths,
-            unwm_means,
+            unwm_means_avg_avg,
             label="Unwatermarked",
             marker=marker,
             markersize=2,
@@ -147,17 +162,26 @@ def plot_scores(
             linestyle="dashed",
         )
 
-        for (watermark_type, dataset_name), values in data.items():
+        for (watermark_type, dataset_name), _ in data.items():
             print(f"Reading data for {watermark_type} on {dataset_name} and plotting")
-            wm_strengths, watermarked_rewards, unwatermarked_rewards = zip(*values)
+            # Average over all seeds
+            wm_means = defaultdict(list)
+            for seed, values in data[(watermark_type, dataset_name)].items():
+                wm_strengths, watermarked_rewards, unwatermarked_rewards = zip(*values)
+                wm_means[seed].append([np.mean(w) for w in watermarked_rewards])
+            wm_means_avg = np.mean(list(wm_means.values()), axis=0)
+            wm_stds = np.std(list(wm_means.values()), axis=0)
+            wm_means_avg = wm_means_avg.squeeze()
+            wm_stds = wm_stds.squeeze()
+            import pdb
 
+            pdb.set_trace()
             color = next(colors)
             marker = next(markers)
             # Plot watermarked scores
-            wm_means = [np.mean(w) for w in watermarked_rewards]
             axs.plot(
                 wm_strengths,
-                wm_means,
+                wm_means_avg,
                 label=f"{get_short_watermark_name(watermark_type)}",
                 marker=marker,
                 markersize=2,
