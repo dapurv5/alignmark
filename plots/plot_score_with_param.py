@@ -15,6 +15,7 @@ def read_jsonl(file_path: str) -> list[dict]:
 
 
 def parse_filename(filename: str) -> dict:
+    filename = filename.replace(".jsonl", "")
     filename_parts = filename.split("_")
     dataset_name = filename_parts[1]
     model_name = filename_parts[2]
@@ -60,14 +61,14 @@ def process_files(
         tuple[str, str], dict[str, list[tuple[float, list[float], list[float]]]]
     ] = {}
     for filename in os.listdir(input_dir):
-        if "truthful_qa" in filename:
-            filename_ = filename.replace(
-                "truthful_qa", "truthfulqa"
-            )  # no _ allowed in dataset name
+        filename_ = filename
+        filename = filename.replace(
+            "truthful_qa", "truthfulqa"
+        )  # no _ allowed in dataset name
         if filename.endswith(f"_{score_name}.jsonl"):
             print(f"Processing {filename}")
-            file_path = os.path.join(input_dir, filename)
-            parsed_info = parse_filename(filename_)
+            file_path = os.path.join(input_dir, filename_)
+            parsed_info = parse_filename(filename)
             if (
                 param_name_to_plot in parsed_info
                 and parsed_info["model_name"] == model_name_to_plot
@@ -95,6 +96,7 @@ def process_files(
     for key in data:
         for seed in data[key]:
             data[key][seed] = sorted(data[key][seed], key=lambda x: x[0])
+
     return data
 
 
@@ -134,33 +136,39 @@ def plot_scores(
         # Plot unwatermarked scores first by averaging over all watermark_types
         # Based on plots these lines mostly coincide across watermark_types because the
         # text was generated from the same model without any watermark
-        unwm_means = defaultdict(list)
+        # collect over seeds and dataset_names
+        unwm_means = defaultdict(lambda: defaultdict(list))
         for (watermark_type, dataset_name), _ in data.items():
             for seed, values in data[(watermark_type, dataset_name)].items():
+                print(f"Processing seed {seed} for {watermark_type} on {dataset_name}")
                 wm_strengths, _, unwatermarked_scores = zip(*values)
-                unwm_means[seed].append([np.mean(u) for u in unwatermarked_scores])
-        color = next(colors)
-        marker = next(markers)
-        # Now average over all seeds
-        unwm_means_avg = np.mean(list(unwm_means.values()), axis=0)
-        # Now average over all watermark_types
-        unwm_means_avg_avg = np.mean(unwm_means_avg, axis=0)
-        # Compute the standard deviation
-        unwm_stds = np.std(list(unwm_means.values()), axis=0)
-        unwm_stds_avg = np.mean(unwm_stds, axis=0)
-        axs.plot(
-            wm_strengths,
-            unwm_means_avg_avg,
-            label="Unwatermarked",
-            marker=marker,
-            markersize=2,
-            markerfacecolor="none",
-            markeredgecolor=color,
-            color=color,
-            alpha=0.7,
-            markeredgewidth=1,
-            linestyle="dashed",
-        )
+                unwm_means[dataset_name][seed].append(
+                    [np.mean(u) for u in unwatermarked_scores]
+                )
+        for dataset_name in unwm_means:
+            color = next(colors)
+            marker = next(markers)
+            # Now average over all seeds
+            unwm_means_avg = np.mean(list(unwm_means[dataset_name].values()), axis=0)
+            # average over all watermark_types because unwatermarked text is generated for each watermark_type
+            unwm_means_avg_avg = np.mean(unwm_means_avg, axis=0)
+            # Compute the standard deviation
+            unwm_stds = np.std(list(unwm_means[dataset_name].values()), axis=0)
+            # average over all watermark_types because unwatermarked text is generated for each watermark_type
+            unwm_stds_avg = np.mean(unwm_stds, axis=0)
+            axs.plot(
+                wm_strengths,
+                unwm_means_avg_avg,
+                label=f"Unwatermarked ({dataset_name})",
+                marker=marker,
+                markersize=2,
+                markerfacecolor="none",
+                markeredgecolor=color,
+                color=color,
+                alpha=0.7,
+                markeredgewidth=1,
+                linestyle="dashed",
+            )
 
         for (watermark_type, dataset_name), _ in data.items():
             print(f"Reading data for {watermark_type} on {dataset_name} and plotting")
