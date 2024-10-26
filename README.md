@@ -9,6 +9,7 @@ conda activate ml_dev311
 module load git/2.33.1
 
 pip install git+https://github.com/yuchenlin/LLM-Blender.git
+pip install git+https://github.com/lucadiliello/bleurt-pytorch.git
 ```
 
 

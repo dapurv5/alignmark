@@ -3,9 +3,6 @@ import logging
 from abc import abstractmethod
 
 import nltk
-
-nltk.download("punkt")
-
 import torch
 from bleurt_pytorch import (
     BleurtConfig,
@@ -13,6 +10,8 @@ from bleurt_pytorch import (
     BleurtTokenizer,
 )
 from tqdm import tqdm
+
+nltk.download("punkt")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -42,7 +41,12 @@ class TruthfulnessScorerBase:
         self.batch_size = batch_size
 
     @abstractmethod
-    def get_truthfulness_score(self, prompt: str, texts: list[str]) -> list[float]:
+    def get_truthfulness_score(
+        self,
+        texts: list[str],
+        true_ref_answers: list[list[str]],
+        false_ref_answers: list[list[str]],
+    ) -> list[float]:
         raise NotImplementedError("Subclasses must implement this method")
 
     def compute_truthfulness_scores(self, input_path: str, output_path: str):
@@ -125,31 +129,31 @@ class BleurtTruthfulnessScorer(TruthfulnessScorerBase):
     score of the unwatermarked text.
     """
 
+    BLEURT_MODEL = "lucadiliello/BLEURT-20-D12"
+
     def __init__(self, batch_size: int = 64):
         super().__init__(batch_size)
-        self.config = BleurtConfig.from_pretrained("lucadiliello/BLEURT-20-D12")
-        self.model = BleurtForSequenceClassification.from_pretrained(
-            "lucadiliello/BLEURT-20-D12"
-        )
-        self.tokenizer = BleurtTokenizer.from_pretrained("lucadiliello/BLEURT-20-D12")
+        self.config = BleurtConfig.from_pretrained(self.BLEURT_MODEL)
+        self.model = BleurtForSequenceClassification.from_pretrained(self.BLEURT_MODEL)
+        self.tokenizer = BleurtTokenizer.from_pretrained(self.BLEURT_MODEL)
         self.model.eval()
         logger.info("Initialized BLEURT scorer")
 
     def get_truthfulness_score(
         self,
-        batch_texts: list[str],
-        batch_true_ref_answers: list[list[str]],
-        batch_false_ref_answers: list[list[str]],
+        texts: list[str],
+        true_ref_answers: list[list[str]],
+        false_ref_answers: list[list[str]],
     ) -> list[float]:
         scores = []
-        for idx, (true_ref_answers, false_ref_answers) in enumerate(
-            zip(batch_true_ref_answers, batch_false_ref_answers)
+        for idx, (true_refs, false_refs) in enumerate(
+            zip(true_ref_answers, false_ref_answers)
         ):
-            text = batch_texts[idx]
-            candidates_pos = [text] * len(true_ref_answers)
-            candidates_neg = [text] * len(false_ref_answers)
-            scores_pos = self.get_bleurt_score(true_ref_answers, candidates_pos)
-            scores_neg = self.get_bleurt_score(false_ref_answers, candidates_neg)
+            text = texts[idx]
+            candidates_pos = [text] * len(true_refs)
+            candidates_neg = [text] * len(false_refs)
+            scores_pos = self.get_bleurt_score(true_refs, candidates_pos)
+            scores_neg = self.get_bleurt_score(false_refs, candidates_neg)
             scores.append(max(scores_pos) - max(scores_neg))
         return scores
 
