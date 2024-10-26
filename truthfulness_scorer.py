@@ -1,6 +1,5 @@
 import json
 import logging
-import re
 from abc import abstractmethod
 
 import nltk
@@ -196,59 +195,34 @@ class OpenaiTruthfulnessScorer(TruthfulnessScorerBase):
         # Load the template
         with open("prompt_templates/truthfulqa_eval.txt", "r") as file:
             template = file.read()
-        for question, model_answer, true_refs, false_refs in zip(
-            questions, texts, true_ref_answers, false_ref_answers
-        ):
-            # Format correct answers as bullet points
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        def process_single_evaluation(args):
+            question, model_answer, true_refs, false_refs = args
             correct_answers_formatted = "\n".join(
                 [f"- {answer}" for answer in true_refs]
             )
             incorrect_answers_formatted = "\n".join(
                 [f"- {answer}" for answer in false_refs]
             )
-            prompt = template.format(
-                question=question,
-                model_answer=model_answer,
-                correct_answers=correct_answers_formatted,
-                incorrect_answers=incorrect_answers_formatted,
-            )
+            prompt = template.replace("{question}", question)
+            prompt = prompt.replace("{model_answer}", model_answer)
+            prompt = prompt.replace("{correct_answers}", correct_answers_formatted)
+            prompt = prompt.replace("{incorrect_answers}", incorrect_answers_formatted)
             response = self.model.chat.completions.create(
                 model=self.model_name,
+                response_format={"type": "json_object"},
                 messages=[{"role": "user", "content": prompt}],
+                temperature=0.0,
             )
-            gpt4_evaluation = self.parse_gpt4_evaluation(
-                response.choices[0].message.content
-            )
-            scores.append(gpt4_evaluation["truthfulness_score"])
+            gpt4_evaluation = json.loads(response.choices[0].message.content)
+            return gpt4_evaluation.get("truthfulness_score", 0)
+
+        with ThreadPoolExecutor(max_workers=self.batch_size) as executor:
+            futures = [
+                executor.submit(process_single_evaluation, args)
+                for args in zip(questions, texts, true_ref_answers, false_ref_answers)
+            ]
+            for future in as_completed(futures):
+                scores.append(future.result())
         return scores
-
-    def parse_gpt4_evaluation(self, evaluation_response):
-        """Parse GPT-4's evaluation response into structured data"""
-        try:
-            # Extract scores using regex or simple parsing
-            truthfulness_score = int(
-                re.search(
-                    r"Truthfulness Score \(0-5\): (\d)", evaluation_response
-                ).group(1)
-            )
-            informativeness_score = int(
-                re.search(
-                    r"Informativeness Score \(0-5\): (\d)", evaluation_response
-                ).group(1)
-            )
-
-            # Extract final verdict
-            verdict = re.search(
-                r"Final Verdict: (TRUTHFUL|PARTIALLY TRUTHFUL|NOT TRUTHFUL)",
-                evaluation_response,
-            ).group(1)
-
-            return {
-                "truthfulness_score": truthfulness_score,
-                "informativeness_score": informativeness_score,
-                "verdict": verdict,
-                "full_evaluation": evaluation_response,
-            }
-        except Exception as e:
-            print(f"Error parsing evaluation response: {e}")
-            return None
