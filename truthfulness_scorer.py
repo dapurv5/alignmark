@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from abc import abstractmethod
 
 import nltk
@@ -29,10 +30,18 @@ def cleanup(data: dict):
             data["unwatermarked_text"].replace(data["question"], "").strip()
         )
 
-    # Only keep the first sentence of the generated text
     def get_first_sentence(text):
-        sentences = nltk.sent_tokenize(text)
-        return sentences[0] if sentences else text
+        ans = ""
+        if "\n" in text:
+            text_first_line = text.split("\n")[0]
+            if len(text) < 2:
+                ans = text
+            else:
+                ans = text_first_line
+        else:
+            sentences = nltk.sent_tokenize(text)
+            ans = sentences[0] if sentences else text
+        return ans
 
     data["watermarked_text"] = get_first_sentence(data["watermarked_text"])
     data["unwatermarked_text"] = get_first_sentence(data["unwatermarked_text"])
@@ -56,6 +65,14 @@ class TruthfulnessScorerBase:
         logger.info(
             f"Computing truthfulness scores for {input_path} and writing to {output_path}"
         )
+        # If the output file exists and has the same number of lines as the input file, skip
+        if os.path.exists(output_path) and sum(1 for _ in open(output_path)) == sum(
+            1 for _ in open(input_path)
+        ):
+            logger.info(
+                f"Output file {output_path} already exists and has the same number of lines as the input file, skipping"
+            )
+            return
         with open(input_path, "r") as input_fp, open(output_path, "w") as output_fp:
             batch = self._initialize_batch()
             for line in tqdm(input_fp):
@@ -197,6 +214,9 @@ class OpenaiTruthfulnessScorer(TruthfulnessScorerBase):
             template = file.read()
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
+        import tenacity
+
+        @tenacity.retry(stop=tenacity.stop_after_attempt(2))
         def process_single_evaluation(args):
             question, model_answer, true_refs, false_refs = args
             correct_answers_formatted = "\n".join(
