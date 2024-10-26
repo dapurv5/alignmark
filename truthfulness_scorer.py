@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from abc import abstractmethod
 
 import nltk
@@ -9,9 +10,11 @@ from bleurt_pytorch import (
     BleurtForSequenceClassification,
     BleurtTokenizer,
 )
+from openai import OpenAI
 from tqdm import tqdm
 
 nltk.download("punkt")
+nltk.download("punkt_tab")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -43,6 +46,7 @@ class TruthfulnessScorerBase:
     @abstractmethod
     def get_truthfulness_score(
         self,
+        questions: list[str],
         texts: list[str],
         true_ref_answers: list[list[str]],
         false_ref_answers: list[list[str]],
@@ -68,11 +72,13 @@ class TruthfulnessScorerBase:
 
     def _process_batch(self, batch, output_fp):
         wm_scores = self.get_truthfulness_score(
+            batch["questions"],
             batch["watermarked_texts"],
             batch["true_ref_answers"],
             batch["false_ref_answers"],
         )
         uwm_scores = self.get_truthfulness_score(
+            batch["questions"],
             batch["unwatermarked_texts"],
             batch["true_ref_answers"],
             batch["false_ref_answers"],
@@ -86,6 +92,7 @@ class TruthfulnessScorerBase:
 
     def _initialize_batch(self):
         return {
+            "questions": [],
             "watermarked_texts": [],
             "unwatermarked_texts": [],
             "true_ref_answers": [],
@@ -94,6 +101,7 @@ class TruthfulnessScorerBase:
         }
 
     def _add_to_batch(self, batch, data):
+        batch["questions"].append(data["question"])
         batch["watermarked_texts"].append(data["watermarked_text"])
         batch["unwatermarked_texts"].append(data["unwatermarked_text"])
         batch["true_ref_answers"].append(data["correct_answers"])
@@ -141,6 +149,7 @@ class BleurtTruthfulnessScorer(TruthfulnessScorerBase):
 
     def get_truthfulness_score(
         self,
+        questions: list[str],
         texts: list[str],
         true_ref_answers: list[list[str]],
         false_ref_answers: list[list[str]],
@@ -166,3 +175,80 @@ class BleurtTruthfulnessScorer(TruthfulnessScorerBase):
             )
             res = self.model(**inputs).logits.flatten().tolist()
         return res
+
+
+@TruthfulnessScorerRegistry.register("openai")
+class OpenaiTruthfulnessScorer(TruthfulnessScorerBase):
+    def __init__(self, model_name: str = "gpt-4o-mini", batch_size: int = 64):
+        super().__init__(batch_size)
+        self.model = OpenAI()
+        self.model_name = model_name
+        logger.info(f"Initialized OpenAI scorer with model {model_name}")
+
+    def get_truthfulness_score(
+        self,
+        questions: list[str],
+        texts: list[str],
+        true_ref_answers: list[list[str]],
+        false_ref_answers: list[list[str]],
+    ) -> list[float]:
+        scores = []
+        # Load the template
+        with open("prompt_templates/truthfulqa_eval.txt", "r") as file:
+            template = file.read()
+        for question, model_answer, true_refs, false_refs in zip(
+            questions, texts, true_ref_answers, false_ref_answers
+        ):
+            # Format correct answers as bullet points
+            correct_answers_formatted = "\n".join(
+                [f"- {answer}" for answer in true_refs]
+            )
+            incorrect_answers_formatted = "\n".join(
+                [f"- {answer}" for answer in false_refs]
+            )
+            prompt = template.format(
+                question=question,
+                model_answer=model_answer,
+                correct_answers=correct_answers_formatted,
+                incorrect_answers=incorrect_answers_formatted,
+            )
+            response = self.model.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            gpt4_evaluation = self.parse_gpt4_evaluation(
+                response.choices[0].message.content
+            )
+            scores.append(gpt4_evaluation["truthfulness_score"])
+        return scores
+
+    def parse_gpt4_evaluation(self, evaluation_response):
+        """Parse GPT-4's evaluation response into structured data"""
+        try:
+            # Extract scores using regex or simple parsing
+            truthfulness_score = int(
+                re.search(
+                    r"Truthfulness Score \(0-5\): (\d)", evaluation_response
+                ).group(1)
+            )
+            informativeness_score = int(
+                re.search(
+                    r"Informativeness Score \(0-5\): (\d)", evaluation_response
+                ).group(1)
+            )
+
+            # Extract final verdict
+            verdict = re.search(
+                r"Final Verdict: (TRUTHFUL|PARTIALLY TRUTHFUL|NOT TRUTHFUL)",
+                evaluation_response,
+            ).group(1)
+
+            return {
+                "truthfulness_score": truthfulness_score,
+                "informativeness_score": informativeness_score,
+                "verdict": verdict,
+                "full_evaluation": evaluation_response,
+            }
+        except Exception as e:
+            print(f"Error parsing evaluation response: {e}")
+            return None
