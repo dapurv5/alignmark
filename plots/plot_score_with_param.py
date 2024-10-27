@@ -108,7 +108,8 @@ def process_files(
     for key in data:
         for seed in data[key]:
             data[key][seed] = sorted(data[key][seed], key=lambda x: x[0])
-
+    # Also sort the keys in the dictionary and make it ordered
+    data = dict(sorted(data.items()))
     return data
 
 
