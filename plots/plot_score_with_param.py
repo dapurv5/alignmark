@@ -65,7 +65,9 @@ def process_files(
         filename = filename.replace(
             "truthful_qa", "truthfulqa"
         )  # no _ allowed in dataset name
-        if filename.endswith(f"_{score_name}.jsonl"):
+        if filename.endswith(f"_{score_name}.jsonl") or filename.endswith(
+            f"_{score_name}s.jsonl"  # Needed for reward and rewards discrepancy
+        ):
             print(f"Processing {filename}")
             file_path = os.path.join(input_dir, filename_)
             parsed_info = parse_filename(filename)
@@ -80,10 +82,20 @@ def process_files(
 
                 blobs = read_jsonl(file_path)
                 watermarked_sc = [
-                    blob[f"watermarked_{score_name}_score"] for blob in blobs
+                    (
+                        blob[f"watermarked_{score_name}_score"]
+                        if f"watermarked_{score_name}_score" in blob
+                        else blob[f"watermarked_text_{score_name}_score"]
+                    )
+                    for blob in blobs
                 ]
                 unwatermarked_sc = [
-                    blob[f"unwatermarked_{score_name}_score"] for blob in blobs
+                    (
+                        blob[f"unwatermarked_{score_name}_score"]
+                        if f"unwatermarked_{score_name}_score" in blob
+                        else blob[f"unwatermarked_text_{score_name}_score"]
+                    )
+                    for blob in blobs
                 ]
                 key = (watermark_type, dataset_name)
                 if key not in data:
@@ -159,7 +171,7 @@ def plot_scores(
             axs.plot(
                 wm_strengths,
                 unwm_means_avg_avg,
-                label=f"Unwatermarked ({dataset_name})",
+                label="Unwatermarked",
                 marker=marker,
                 markersize=2,
                 markerfacecolor="none",
@@ -198,16 +210,20 @@ def plot_scores(
                 linestyle="-",
             )
 
-        axs.set_xlabel(f"{param_name_to_plot} →", fontsize=6)
-        axs.set_ylabel(f"{score_name.capitalize()} Score", fontsize=6, labelpad=3)
+        axs.set_xlabel(f"{param_name_to_plot} →", fontsize=5)
+        axs.set_ylabel(f"{score_name.capitalize()} Score", fontsize=5, labelpad=3)
         axs.tick_params(axis="both", which="major", labelsize=5)
         axs.set_title(
             f"{score_name.capitalize()} Scores with Temperature for {get_short_model_name(model_name_to_plot)}",
-            fontsize=6,
+            fontsize=5,
         )
         axs.legend(loc="best", fontsize=5)
 
         axs.set_xlim(left=0.2, right=1)
+        # Get current ticks
+        ticks = axs.get_xticks()
+        # Keep only every other tick
+        axs.set_xticks(ticks[::2])
         axs.grid(True, linestyle="--", alpha=0.7)
 
         fig.savefig(output_file, format="pdf", bbox_inches="tight")
