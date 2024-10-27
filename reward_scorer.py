@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from abc import abstractmethod
 from collections import OrderedDict
 
@@ -17,6 +18,14 @@ class RewardScorerBase:
 
     def compute_rewards(self, input_path: str, output_path: str):
         logger.info(f"Computing rewards for {input_path} and writing to {output_path}")
+        # If the output file exists and has the same number of lines as the input file, skip
+        if os.path.exists(output_path) and sum(1 for _ in open(output_path)) == sum(
+            1 for _ in open(input_path)
+        ):
+            logger.info(
+                f"Output file {output_path} already exists and has the same number of lines as the input file, skipping"
+            )
+            return
         with open(input_path, "r") as input_fp, open(output_path, "w") as output_fp:
             for line in tqdm(input_fp):
                 data = json.loads(line)
