@@ -117,6 +117,13 @@ class WatermarkTextPairsGenerator:
 
         return ComponentClass(**common_args)
 
+    def format_prompt(self, prompt: str):
+        if "### Instruction:" in prompt and "### Response:" in prompt:
+            return prompt
+        else:
+            # Add the instruction and response tags
+            return f"### Instruction:\n{prompt}\n### Response:\n"
+
     def generate(self, examples: Any, **gen_kwargs_override):
         # shuffle examples
         if isinstance(examples, list):
@@ -143,8 +150,12 @@ class WatermarkTextPairsGenerator:
                 # datasets.arrow_dataset.Dataset
                 for j in range(i, min(i + self.batch_size, len(examples))):
                     batch.append(examples[j])
+                # Format the prompts to include the instruction and response tags
+                for example in batch:
+                    example[self.text_field] = self.format_prompt(
+                        example[self.text_field]
+                    )
                 prompts = [example[self.text_field] for example in batch]
-
                 watermarked_texts = self.wm_generator.generate(prompts, **gen_kwargs)
                 unwatermarked_texts = self.generator.generate(prompts, **gen_kwargs)
 
