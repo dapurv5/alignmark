@@ -44,21 +44,30 @@ def run_generator(
 def main(
     exp_dir: str,
     model_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct",
-    dataset_name: str = "Dahoas/full-hh-rlhf",
+    dataset_name: str = "",
     dataset_subset_name: str = "",
     dataset_split: str = "test",
     watermark_name: str = "openai",  # openai, maryland, no_watermark
     limit_dataset_size: int = -1,
     seed: int = 42,
+    dataset_path: str = None,
     **kwargs,
 ):
     seed_everything(seed)
-    if dataset_subset_name:
-        dataset = load_dataset(
-            dataset_name, dataset_subset_name, trust_remote_code=True
-        )
+    if dataset_name is not None and dataset_name != "":
+        if dataset_subset_name:
+            dataset = load_dataset(
+                dataset_name, dataset_subset_name, trust_remote_code=True
+            )
+        else:
+            dataset = load_dataset(dataset_name, trust_remote_code=True)
+    elif dataset_path is not None:
+        dataset = load_dataset("json", data_files=dataset_path)
+        dataset_split = "train"
+        dataset_name = os.path.splitext(os.path.basename(dataset_path))[0]
     else:
-        dataset = load_dataset(dataset_name, trust_remote_code=True)
+        raise ValueError("Either dataset_name or dataset_path must be provided")
+
     if dataset_split in dataset:
         dataset = dataset[dataset_split]
     else:
