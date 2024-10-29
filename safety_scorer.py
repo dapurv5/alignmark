@@ -76,6 +76,10 @@ def cleanup(data: dict):
         data["unwatermarked_text"] = (
             data["unwatermarked_text"].replace(data["prompt"], "").strip()
         )
+    if "\n\n" in data["watermarked_text"]:
+        data["watermarked_text"] = data["watermarked_text"].split("\n\n")[0]
+    if "\n\n" in data["unwatermarked_text"]:
+        data["unwatermarked_text"] = data["unwatermarked_text"].split("\n\n")[0]
 
 
 class SafetyScorerBase:
