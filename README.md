@@ -38,6 +38,7 @@ python plots/plot_score_with_param.py --input_dir /Users/verapurv/mint/watermark
 
 ### EXPERIMENT 3 (Safety)
 
+bash experiment3/run.sh
 
-
+python run_safety_scorer.py --input_path /project/phan/av787/projs/watermarking/outputs/exp_011_safety/ --output_path /project/phan/av787/projs/watermarking/outputs/exp_011_safety/ --batch_size 32
 ```
