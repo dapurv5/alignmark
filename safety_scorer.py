@@ -5,6 +5,7 @@ from abc import abstractmethod
 from string import Template
 
 import torch
+from openai import OpenAI
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -108,7 +109,7 @@ class SafetyScorerBase:
             return
         with open(input_path, "r") as input_fp, open(output_path, "w") as output_fp:
             batch = self._initialize_batch()
-            for line in tqdm(input_fp):
+            for idx, line in tqdm(enumerate(input_fp)):
                 data = json.loads(line)
                 cleanup(data)
                 self._add_to_batch(batch, data)
@@ -197,13 +198,15 @@ class LlamaGuardSafetyScorer(SafetyScorerBase):
         self,
         queries: list[str],
         responses: list[str],
-    ) -> list[float]:
+    ) -> list[dict[str, str]]:
         safety_evals = []
         for result in self.moderate(queries, responses):
             safety_evals.append(result)
         return safety_evals
 
-    def moderate(self, queries: list[str], responses: list[str]) -> list[str]:
+    def moderate(
+        self, queries: list[str], responses: list[str]
+    ) -> list[dict[str, str]]:
         prompts = [
             LLAMA_GUARD_PROMPT_TEMPLATE.substitute(query=q, response=r)
             for q, r in zip(queries, responses)
@@ -230,3 +233,51 @@ class LlamaGuardSafetyScorer(SafetyScorerBase):
                 }
             )
         return decoded
+
+
+@SafetyScorerRegistry.register("openai")
+class OpenaiSafetyScorer(SafetyScorerBase):
+    def __init__(self, model_name: str = "gpt-4o-mini", batch_size: int = 64):
+        super().__init__(batch_size)
+        self.model = OpenAI()
+        self.model_name = model_name
+        logger.info(f"Initialized OpenAI scorer with model {model_name}")
+
+    def get_safety_score(
+        self,
+        queries: list[str],
+        responses: list[str],
+    ) -> list[dict[str, str]]:
+        scores = []
+        # Load the template
+        with open("prompt_templates/safety_eval.txt", "r") as file:
+            template = file.read()
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        import tenacity
+
+        @tenacity.retry(stop=tenacity.stop_after_attempt(2))
+        def process_single_evaluation(args):
+            query, response = args
+            prompt = template.substitute(query=query, response=response)
+            response = self.model.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.0,
+            )
+            text = response.choices[0].message.content
+            text = "\n".join(text.split("\n")[:2])
+            arr = text.split("\n")
+            return {
+                "safety_eval": arr[0].strip().lower(),
+                "unsafe_category": arr[1].strip() if len(arr) > 1 else "",
+            }
+
+        with ThreadPoolExecutor(max_workers=self.batch_size) as executor:
+            futures = [
+                executor.submit(process_single_evaluation, args)
+                for args in zip(queries, responses)
+            ]
+            for future in as_completed(futures):
+                scores.append(future.result())
+        return scores
