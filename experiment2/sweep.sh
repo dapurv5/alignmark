@@ -95,7 +95,7 @@ set -o errexit -o xtrace -o nounset
 # done
 
 
-for seed in $(seq 43 1 44); do
+for seed in $(seq 43 1 43); do
     for temperature in $(seq 0.2 0.2 1.0); do
         echo "Running temperature = $temperature ..."
         sleep 2
@@ -117,7 +117,7 @@ for seed in $(seq 43 1 44); do
 done
 
 
-for seed in $(seq 43 1 44); do
+for seed in $(seq 43 1 43); do
     for temperature in $(seq 0.2 0.2 1.0); do
         echo "Running temperature = $temperature ..."
         sleep 2
