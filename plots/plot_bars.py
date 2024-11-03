@@ -60,71 +60,77 @@ def plot_safety_comparison(all_models_data, output_path):
 
     import pub_ready_plots as prp
 
-    # Create a figure with horizontal subplots
-    fig, axes = plt.subplots(1, len(models), figsize=(20, 8))
-    if len(models) == 1:
-        axes = [axes]
+    # Use NeurIPS style
+    with prp.get_context(layout=prp.Layout.NEURIPS, width_frac=1, height_frac=0.3) as (
+        fig,
+        ax,
+    ):
+        # Create a figure with horizontal subplots
+        fig, axes = plt.subplots(1, len(models), constrained_layout=True)
+        if len(models) == 1:
+            axes = [axes]
 
-    fig.suptitle(
-        "Increase in Number of Unsafe Responses with Watermarking",
-        fontsize=16,
-        y=1.05,
-    )
-
-    bar_width = 0.35
-    r1 = np.arange(len(categories))
-    r2 = [x + bar_width for x in r1]
-
-    for idx, (model_name, model_data) in enumerate(all_models_data.items()):
-        ax = axes[idx]
-
-        # Calculate absolute increases
-        openai_increases = []
-        maryland_increases = []
-        for cat in categories:
-            baseline = model_data["unwatermarked"][cat]
-            openai_inc = model_data["openai"][cat] - baseline
-            maryland_inc = model_data["maryland"][cat] - baseline
-            openai_increases.append(openai_inc)
-            maryland_increases.append(maryland_inc)
-
-        # Plot bars for absolute increases
-        ax.barh(
-            r1,
-            openai_increases,
-            bar_width,
-            label="Gumbel (Dist-Free)",
-            alpha=0.7,
-            color="#2ca02c",
-        )
-        ax.barh(
-            r2,
-            maryland_increases,
-            bar_width,
-            label="KGW (Distort)",
-            alpha=0.7,
-            color="#ff7f0e",
+        fig.suptitle(
+            "Change in Number of Unsafe Responses with Watermarking",
+            fontsize=8,
+            y=0.95,
+            x=0.55,
         )
 
-        ax.set_title(f"Model: {model_name}")
-        ax.set_xlabel("Increase in Number of Unsafe Responses")
-        if idx == 0:
-            ax.set_ylabel("Safety Categories")
-            ax.set_yticks([r + bar_width / 2 for r in range(len(categories))])
-            ax.set_yticklabels(categories, ha="right")
-        else:
-            ax.set_yticks([])
-        ax.legend()
+        bar_width = 0.35
+        r1 = np.arange(len(categories))
+        r2 = [x + bar_width for x in r1]
 
-        # Add grid
-        ax.grid(True, linestyle="--", alpha=0.7)
+        for idx, (model_name, model_data) in enumerate(all_models_data.items()):
+            ax = axes[idx]
 
-        # Add vertical line at 0
-        ax.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
+            # Calculate absolute increases
+            openai_increases = []
+            maryland_increases = []
+            for cat in categories:
+                baseline = model_data["unwatermarked"][cat]
+                openai_inc = model_data["openai"][cat] - baseline
+                maryland_inc = model_data["maryland"][cat] - baseline
+                openai_increases.append(openai_inc)
+                maryland_increases.append(maryland_inc)
 
-    plt.tight_layout()
-    plt.savefig(output_path, bbox_inches="tight")
-    plt.close()
+            # Plot bars for absolute increases
+            ax.barh(
+                r1,
+                openai_increases,
+                bar_width,
+                label="Gumbel (Dist-Free)",
+                alpha=0.7,
+                color="#2ca02c",
+            )
+            ax.barh(
+                r2,
+                maryland_increases,
+                bar_width,
+                label="KGW (Distort)",
+                alpha=0.7,
+                color="#ff7f0e",
+            )
+            ax.set_xlabel(f"{model_name}", fontsize=8, labelpad=5)
+            if idx == 0:
+                ax.set_ylabel("Safety Categories", fontsize=8)
+                ax.set_yticks([r + bar_width / 2 for r in range(len(categories))])
+                ax.set_yticklabels(categories, ha="right", fontsize=6)
+            else:
+                ax.set_yticks([r + bar_width / 2 for r in range(len(categories))])
+                ax.set_yticklabels([])
+            if idx == len(all_models_data) - 1:  # Only add legend to last subplot
+                ax.legend(fontsize=6, bbox_to_anchor=(1.05, 1), loc="lower right")
+            ax.tick_params(axis="both", which="major", labelsize=6)
+
+            # Add grid
+            ax.grid(True, linestyle="--", alpha=0.7)
+
+            # Add vertical line at 0
+            ax.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
+
+        plt.savefig(output_path, bbox_inches="tight", dpi=300)
+        plt.close()
 
 
 def group_files_by_model(files):
