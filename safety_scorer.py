@@ -251,7 +251,7 @@ class OpenaiSafetyScorer(SafetyScorerBase):
         scores = []
         # Load the template
         with open("prompt_templates/safety_eval.txt", "r") as file:
-            template = file.read()
+            template = Template(file.read())
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         import tenacity
