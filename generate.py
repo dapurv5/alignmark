@@ -118,11 +118,25 @@ class WatermarkTextPairsGenerator:
         return ComponentClass(**common_args)
 
     def format_prompt(self, prompt: str):
-        if "### Instruction:" in prompt and "### Response:" in prompt:
-            return prompt
+        if "Human:" in prompt or "Assistant:" in prompt:
+            # Split into conversation turns and apply chat template
+            messages = []
+            for part in prompt.split("\n\n"):
+                if part.startswith("Human:"):
+                    content = part[6:].strip()
+                    if content:
+                        messages.append({"role": "user", "content": content})
+                elif part.startswith("Assistant:"):
+                    content = part[10:].strip()
+                    if content:
+                        messages.append({"role": "assistant", "content": content})
+            formatted_prompt = self.tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
+            )
+            return formatted_prompt
         else:
             # Add the instruction and response tags
-            return f"### Instruction:\n{prompt}\n### Response:\n"
+            return prompt
 
     def generate(self, examples: Any, **gen_kwargs_override):
         # shuffle examples
@@ -150,14 +164,33 @@ class WatermarkTextPairsGenerator:
                 # datasets.arrow_dataset.Dataset
                 for j in range(i, min(i + self.batch_size, len(examples))):
                     batch.append(examples[j])
-                # Format the prompts to include the instruction and response tags
-                for example in batch:
-                    example[self.text_field] = self.format_prompt(
-                        example[self.text_field]
-                    )
-                prompts = [example[self.text_field] for example in batch]
+                # Format the prompts to take care of model-specific formatting
+
+                if "google" in self.model_name and "gemma" in self.model_name:
+                    prompts = [
+                        self.format_prompt(example[self.text_field])
+                        for example in batch
+                    ]
+                    for idx, prompt in enumerate(prompts):
+                        batch[idx][self.text_field] = prompt
+                else:
+                    prompts = [example[self.text_field] for example in batch]
+
                 watermarked_texts = self.wm_generator.generate(prompts, **gen_kwargs)
                 unwatermarked_texts = self.generator.generate(prompts, **gen_kwargs)
+                # Encode-Decode text to remove special tokens
+                watermarked_texts = [
+                    self.tokenizer.decode(
+                        self.tokenizer.encode(text), skip_special_tokens=True
+                    )
+                    for text in watermarked_texts
+                ]
+                unwatermarked_texts = [
+                    self.tokenizer.decode(
+                        self.tokenizer.encode(text), skip_special_tokens=True
+                    )
+                    for text in unwatermarked_texts
+                ]
 
                 watermarked_outs = [self.detect(text) for text in watermarked_texts]
                 unwatermarked_outs = [self.detect(text) for text in unwatermarked_texts]
