@@ -151,6 +151,8 @@ def extract_model_name(filepath):
         return "Mistral-7B-Inst"
     elif "gemma" in filename:
         return "Gemma-2-9B-Inst"
+    elif "Phi-3" in filename:
+        return "Phi-3-Mini-Inst"
     return "Unknown"
 
 

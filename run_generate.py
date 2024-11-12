@@ -28,6 +28,7 @@ def run_generator(
     output_path: str,
     threshold: float = 0.05,
     batch_size: int = 16,
+    format_prompt_as_instructions: bool = False,
     **kwargs,
 ):
     generator = WatermarkTextPairsGenerator(
@@ -36,6 +37,7 @@ def run_generator(
         output_path,
         threshold=threshold,
         batch_size=batch_size,
+        format_prompt_as_instructions=format_prompt_as_instructions,
         **kwargs,
     )
     generator.generate(examples)
@@ -51,6 +53,7 @@ def main(
     limit_dataset_size: int = -1,
     seed: int = 42,
     dataset_path: str = None,
+    format_prompt_as_instructions: bool = False,
     **kwargs,
 ):
     seed_everything(seed)
@@ -102,6 +105,7 @@ def main(
         watermark_name=watermark_name,
         examples=dataset,
         output_path=output_path,
+        format_prompt_as_instructions=format_prompt_as_instructions,
         **kwargs,
     )
 

@@ -17,6 +17,7 @@ class WatermarkTextPairsGenerator:
         threshold: float = 0.05,
         batch_size: int = 16,
         text_field: str = "prompt",
+        format_prompt_as_instructions: bool = False,
         **kwargs,
     ):
         self.model_name = model_name
@@ -42,6 +43,7 @@ class WatermarkTextPairsGenerator:
         self.wm_detector = self._initialize_wm_component(
             "detector", watermark_name, **kwargs
         )
+        self.format_prompt_as_instructions = format_prompt_as_instructions
         self.kwargs = kwargs
 
     def _infer_vocab_size(self, model, tokenizer):
@@ -118,24 +120,15 @@ class WatermarkTextPairsGenerator:
         return ComponentClass(**common_args)
 
     def format_prompt(self, prompt: str):
-        if "Human:" in prompt or "Assistant:" in prompt:
-            # Split into conversation turns and apply chat template
-            messages = []
-            for part in prompt.split("\n\n"):
-                if part.startswith("Human:"):
-                    content = part[6:].strip()
-                    if content:
-                        messages.append({"role": "user", "content": content})
-                elif part.startswith("Assistant:"):
-                    content = part[10:].strip()
-                    if content:
-                        messages.append({"role": "assistant", "content": content})
-            formatted_prompt = self.tokenizer.apply_chat_template(
-                messages, tokenize=False, add_generation_prompt=True
-            )
-            return formatted_prompt
+        if self.format_prompt_as_instructions:
+            if ("### Instruction:" in prompt and "### Response:" in prompt) or (
+                "Human:" in prompt and "Assistant:" in prompt
+            ):
+                return prompt
+            else:
+                # Add the instruction and response tags
+                return f"### Instruction:\n{prompt}\n### Response:\n"
         else:
-            # Add the instruction and response tags
             return prompt
 
     def generate(self, examples: Any, **gen_kwargs_override):
@@ -166,7 +159,7 @@ class WatermarkTextPairsGenerator:
                     batch.append(examples[j])
                 # Format the prompts to take care of model-specific formatting
 
-                if "google" in self.model_name and "gemma" in self.model_name:
+                if self.format_prompt_as_instructions:
                     prompts = [
                         self.format_prompt(example[self.text_field])
                         for example in batch

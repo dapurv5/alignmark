@@ -118,6 +118,7 @@ def get_short_model_name(model_name: str) -> str:
         "Mistral-7B-Instruct-v0.3": "Mistral-7B-Inst",
         "Meta-Llama-3.1-8B-Instruct": "LLaMA-8B-Inst",
         "gemma-2-9b-it": "Gemma-9B-Inst",
+        "Phi-3-mini-4k-instruct": "Phi-3-Mini-Inst",
     }.get(model_name, model_name)
 
 
