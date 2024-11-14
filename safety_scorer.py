@@ -77,10 +77,48 @@ def cleanup(data: dict):
         data["unwatermarked_text"] = (
             data["unwatermarked_text"].replace(data["prompt"], "").strip()
         )
+        if "### Instruction:" in data["prompt"]:
+            data["prompt"] = data["prompt"].replace("### Instruction:", "").strip()
+        if "### Response:" in data["prompt"]:
+            data["prompt"] = data["prompt"].replace("### Response:", "").strip()
+    if (
+        "### Instruction:" in data["watermarked_text"]
+        or "## Instruction:" in data["watermarked_text"]
+    ):
+        data["watermarked_text"] = (
+            data["watermarked_text"].split("### Instruction:")[0].strip()
+        )
+        data["watermarked_text"] = (
+            data["watermarked_text"].split("## Instruction:")[0].strip()
+        )
+    if (
+        "### Instruction:" in data["unwatermarked_text"]
+        or "## Instruction:" in data["unwatermarked_text"]
+    ):
+        data["unwatermarked_text"] = (
+            data["unwatermarked_text"].split("### Instruction:")[0].strip()
+        )
+        data["unwatermarked_text"] = (
+            data["unwatermarked_text"].split("## Instruction:")[0].strip()
+        )
+    if "### Response:" in data["watermarked_text"]:
+        data["watermarked_text"] = (
+            data["watermarked_text"].split("### Response:")[0].strip()
+        )
+    if "### Response:" in data["unwatermarked_text"]:
+        data["unwatermarked_text"] = (
+            data["unwatermarked_text"].split("### Response:")[0].strip()
+        )
     if "\n\n" in data["watermarked_text"]:
-        data["watermarked_text"] = data["watermarked_text"].split("\n\n")[0]
+        # Sometimes there is a heading followed by the essay, this handles that case
+        data["watermarked_text"] = "\n".join(data["watermarked_text"].split("\n\n")[:2])
+    data["watermarked_text"] = data["watermarked_text"].replace("\n", " ")
     if "\n\n" in data["unwatermarked_text"]:
-        data["unwatermarked_text"] = data["unwatermarked_text"].split("\n\n")[0]
+        # Sometimes there is a heading followed by the essay, this handles that case
+        data["unwatermarked_text"] = "\n".join(
+            data["unwatermarked_text"].split("\n\n")[:2]
+        )
+    data["unwatermarked_text"] = data["unwatermarked_text"].replace("\n", " ")
 
 
 class SafetyScorerBase:
@@ -257,12 +295,15 @@ class OpenaiSafetyScorer(SafetyScorerBase):
         import tenacity
 
         @tenacity.retry(stop=tenacity.stop_after_attempt(2))
-        def process_single_evaluation(args):
-            query, response = args
+        def process_single_evaluation(args_):
+            query, response = args_
             prompt = template.substitute(query=query, response=response)
             response = self.model.chat.completions.create(
                 model=self.model_name,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": "You are a helpful AI assistant."},
+                    {"role": "user", "content": prompt},
+                ],
                 temperature=0.0,
             )
             text = response.choices[0].message.content
@@ -274,10 +315,13 @@ class OpenaiSafetyScorer(SafetyScorerBase):
             }
 
         with ThreadPoolExecutor(max_workers=self.batch_size) as executor:
-            futures = [
-                executor.submit(process_single_evaluation, args)
-                for args in zip(queries, responses)
-            ]
+            futures = {
+                executor.submit(process_single_evaluation, args): idx
+                for idx, args in enumerate(zip(queries, responses))
+            }
+            results = [None] * len(queries)
             for future in as_completed(futures):
-                scores.append(future.result())
+                idx = futures[future]
+                results[idx] = future.result()
+            scores.extend(results)
         return scores
