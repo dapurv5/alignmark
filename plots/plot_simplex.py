@@ -6,6 +6,21 @@ import ternary
 from fire import Fire
 
 
+def extract_model_name(filepath):
+    filename = str(filepath)
+    if "Meta-Llama" in filename:
+        return "LLaMA-8B-Inst"
+    elif "Mistral" in filename:
+        return "Mistral-7B-Inst"
+    elif "gemma" in filename:
+        return "Gemma-2-9B-Inst"
+    elif "Phi-3" in filename:
+        return "Phi-3-Mini-Inst"
+    elif "Qwen2-7B-Instruct" in filename:
+        return "Qwen2-7B-Inst"
+    return "Unknown"
+
+
 def plot(df: pd.DataFrame):
     # Normalize each row to create probability distributions
     metrics = ["Safe", "Unsafe", "Overrefusal"]
@@ -49,7 +64,10 @@ def plot(df: pd.DataFrame):
 
         # Keep the triangular boundary
         tax.boundary(linewidth=1.0)
-        tax.gridlines(multiple=0.1, color="gray", linewidth=0.5, alpha=0.3)
+        # tax.gridlines(multiple=0.1, color="gray", linewidth=0.5, alpha=0.3)
+
+        # Remove the background by setting it to white
+        tax.get_axes().set_facecolor("white")
 
         # Add vertex labels with larger font and smaller offset
         fontsize = 12
@@ -90,13 +108,14 @@ def plot(df: pd.DataFrame):
 
         # Model markers
         for model, marker in markers.items():
+            model_name = extract_model_name(model)
             model_legend_elements.append(
                 plt.Line2D(
                     [0],
                     [0],
                     marker=marker,
                     color="gray",
-                    label=model,
+                    label=model_name,
                     markersize=8,
                     linestyle="None",
                 )
@@ -123,11 +142,11 @@ def plot(df: pd.DataFrame):
             bbox_to_anchor=(1.0, 1.0),
             loc="upper right",
             borderaxespad=0.0,
-            title="Model",
             ncol=1,
             frameon=False,
             fontsize=12,
             title_fontsize=12,
+            alignment="right",
         )
 
         # Add the first legend manually to the axis
@@ -136,18 +155,19 @@ def plot(df: pd.DataFrame):
         # Second legend (Settings)
         ax.legend(
             handles=settings_legend_elements,
-            bbox_to_anchor=(0.0, 1.0),
+            bbox_to_anchor=(-0.08, 1.0),
             loc="upper left",
             borderaxespad=0.0,
-            title="Watermark Type",
             ncol=1,
             frameon=False,
             fontsize=12,
             title_fontsize=12,
         )
 
-        # Adjust layout
-        plt.tight_layout()
+        # Adjust layout to center the figure
+        plt.tight_layout(
+            rect=[-0.1, 0, 1, 1]
+        )  # Shifts everything left by adjusting the left margin
         plt.show()
 
 
