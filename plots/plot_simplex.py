@@ -4,6 +4,7 @@ import pandas as pd
 import pub_ready_plots as prp
 import ternary
 from fire import Fire
+from matplotlib.patches import ConnectionPatch
 
 
 def extract_model_name(filepath):
@@ -50,6 +51,82 @@ def plot(df: pd.DataFrame, markers: dict[str, str]):
                         label=f"{model} ({setting})",
                         zorder=10,
                     )  # Ensure points are above grid lines
+
+        # Store points for arrows
+        model_points = {}
+        for model in markers:
+            model_points[model] = {}
+            for setting in colors:
+                mask = (df["Model Name"] == model) & (df["Setting"] == setting)
+                if mask.any():
+                    point = df[mask].iloc[0]
+                    coords = (point["Safe"], point["Unsafe"], point["Overrefusal"])
+                    # Plot points and get the collection object directly
+                    scatter_points = tax.scatter(
+                        [coords],
+                        marker=markers[model],
+                        color=colors[setting],
+                        s=100,
+                        label=f"{model} ({setting})",
+                        zorder=10,
+                    )
+                    # Get the last added collection which contains our point
+                    collections = ax.collections
+                    if collections:
+                        last_collection = collections[-1]
+                        model_points[model][setting] = (
+                            last_collection.get_offsets()[0][0],
+                            last_collection.get_offsets()[0][1],
+                        )
+
+        # Add curved arrows for Qwen and Phi models
+        models_to_connect = ["Qwen2-7B-Instruct", "Phi-3-mini-4k-instruct"]
+        for model in models_to_connect:
+            if model in model_points:
+                start = model_points[model]["Unwatermarked"]
+                kgw = model_points[model].get("KGW")
+                gumbel = model_points[model].get("Gumbel")
+
+                if kgw and gumbel:
+                    # Create curved arrows with different curvatures
+                    arrow_params = [
+                        (kgw, 0.6),  # More curved for KGW
+                        (gumbel, -0.3),  # Opposite curve for Gumbel
+                    ]
+
+                    for end_point, rad in arrow_params:
+                        # Calculate distance between points
+                        distance = (
+                            (end_point[0] - start[0]) ** 2
+                            + (end_point[1] - start[1]) ** 2
+                        ) ** 0.5
+
+                        # Adjust offset based on distance
+                        # Smaller distance -> larger offset (up to 0.25)
+                        # Larger distance -> smaller offset (down to 0.1)
+                        base_offset = 0.01
+                        min_offset = 0.005
+                        offset = max(base_offset * (1 / distance), min_offset)
+
+                        adjusted_end = (
+                            end_point[0] - (end_point[0] - start[0]) * offset,
+                            end_point[1] - (end_point[1] - start[1]) * offset,
+                        )
+
+                        arrow = ConnectionPatch(
+                            xyA=start,
+                            xyB=adjusted_end,
+                            coordsA="data",
+                            coordsB="data",
+                            axesA=ax,
+                            axesB=ax,
+                            connectionstyle=f"arc3,rad={rad}",
+                            arrowstyle="->",
+                            color="black",
+                            linewidth=1,
+                            zorder=5,
+                        )
+                        ax.add_patch(arrow)
 
         # Remove the square boundary by setting the axis off
         ax.set_axis_off()
@@ -183,7 +260,7 @@ def filter_data_by_model(df: pd.DataFrame, model_name: str = None) -> pd.DataFra
     return filtered_df
 
 
-def main(input_path: str, model_name: str):
+def main(input_path: str, model_name: str = None):
     df = pd.read_csv(input_path, sep="\t")
     if model_name:
         df = filter_data_by_model(df, model_name)
