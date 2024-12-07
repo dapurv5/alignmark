@@ -43,4 +43,11 @@ bash experiment3/run.sh
 python run_safety_scorer.py --input_path /project/phan/av787/projs/watermarking/outputs/exp_017_safety_gpt4omini/ --output_path /project/phan/av787/projs/watermarking/outputs/exp_017_safety_gpt4omini/ --batch_size 8 --scorer_name openai
 
 python plots/plot_bars.py --input_dir $HOME/mint/watermarking-analysis/exp_012_safety/ --output_dir $HOME/mint/watermarking-analysis/exp_016_safety_gpt4omini/plots
+
+
+### EXPERIMENT 4 (Over-refusal)
+
+bash experiment4/run.sh
+
+python run_refusal_scorer.py --input_path $HOME/mint/watermarking-analysis/EXP_004_refusal --output_path $HOME/mint/watermarking-analysis/EXP_004_refusal --scorer_name exact-match --batch_size 1
 ```
