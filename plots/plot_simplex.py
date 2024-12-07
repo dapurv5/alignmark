@@ -21,20 +21,12 @@ def extract_model_name(filepath):
     return "Unknown"
 
 
-def plot(df: pd.DataFrame):
+def plot(df: pd.DataFrame, markers: dict[str, str]):
     # Normalize each row to create probability distributions
     metrics = ["Safe", "Unsafe", "Overrefusal"]
     for idx in df.index:
         total = df.loc[idx, metrics].sum()
         df.loc[idx, metrics] = df.loc[idx, metrics] / total
-
-    # Define markers for different models
-    markers = {
-        "Qwen2-7B-Instruct": "o",
-        "Phi-3-mini-4k-instruct": "s",
-        "Meta-Llama-3.1-8B-Instruct": "^",
-        "Mistral-7B-Instruct-v0.3": "D",
-    }
 
     # Define colors for different settings
     colors = {"KGW": "#ff7f0e", "Gumbel": "#2ca02c", "Unwatermarked": "#1f77b4"}
@@ -171,9 +163,40 @@ def plot(df: pd.DataFrame):
         plt.show()
 
 
-def main(input_path: str):
+def filter_data_by_model(df: pd.DataFrame, model_name: str = None) -> pd.DataFrame:
+    """Filter the dataframe to keep only the specified model's data.
+
+    Args:
+        df: Input dataframe with model data
+        model_name: Model name to filter by
+
+    Returns:
+        Filtered dataframe
+    """
+
+    mask = df["Model Name"].str.contains(model_name, case=False)
+    filtered_df = df[mask].copy()
+
+    if len(filtered_df) == 0:
+        raise ValueError(f"Model {model_name} not found in data")
+
+    return filtered_df
+
+
+def main(input_path: str, model_name: str):
     df = pd.read_csv(input_path, sep="\t")
-    plot(df)
+    if model_name:
+        df = filter_data_by_model(df, model_name)
+    # Define markers for different models
+    markers = {
+        "Qwen2-7B-Instruct": "o",
+        "Phi-3-mini-4k-instruct": "s",
+        "Meta-Llama-3.1-8B-Instruct": "^",
+        "Mistral-7B-Instruct-v0.3": "D",
+    }
+    # Filter the markers to only include the models in the dataframe
+    markers = {k: v for k, v in markers.items() if k in df["Model Name"].unique()}
+    plot(df, markers)
 
 
 if __name__ == "__main__":
