@@ -55,5 +55,5 @@ python plots/plot_simplex.py --input_path $HOME/mint/watermarking-analysis/Simpl
 
 python plots/plot_simplex.py --input_path $HOME/mint/watermarking-analysis/SimplexData_v1.tsv  --model_name "Meta-Llama-3.1-8B-Instruct"
 
-
+python plots/plot_stacked_bar_chart.py --input_path $HOME/mint/watermarking-analysis/SimplexData_v3.tsv
 ```
