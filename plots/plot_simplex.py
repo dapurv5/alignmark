@@ -22,221 +22,168 @@ def extract_model_name(filepath):
     return "Unknown"
 
 
+def setup_ternary_plot(ax):
+    tax = ternary.TernaryAxesSubplot(ax=ax, scale=1.0)
+    ax.set_axis_off()
+    tax.boundary(linewidth=1.0)
+    tax.get_axes().set_facecolor("white")
+    return tax
+
+
+def add_vertex_labels(tax):
+    fontsize = 12
+    offset = 0.02
+    tax.annotate(
+        "Safe", (1.0 + offset, -offset, 0.0), fontsize=fontsize, ha="left", va="center"
+    )
+    tax.annotate(
+        "Unsafe",
+        (offset, 1.0 + offset, 0.0),
+        fontsize=fontsize,
+        ha="right",
+        va="bottom",
+    )
+    tax.annotate(
+        "Overrefusal",
+        (-offset, offset, 1.0 + offset),
+        fontsize=fontsize,
+        ha="right",
+        va="top",
+    )
+    tax.clear_matplotlib_ticks()
+
+
+def create_legends(ax, markers, colors):
+    model_elements = [
+        plt.Line2D(
+            [0],
+            [0],
+            marker=marker,
+            color="gray",
+            label=extract_model_name(model),
+            markersize=8,
+            linestyle="None",
+        )
+        for model, marker in markers.items()
+    ]
+
+    setting_elements = [
+        plt.Line2D(
+            [0],
+            [0],
+            marker="o",
+            color=color,
+            label=setting,
+            markersize=8,
+            linestyle="None",
+        )
+        for setting, color in colors.items()
+    ]
+
+    leg1 = ax.legend(
+        handles=model_elements,
+        bbox_to_anchor=(1.0, 1.0),
+        loc="upper right",
+        borderaxespad=0.0,
+        ncol=1,
+        frameon=False,
+        fontsize=12,
+        title_fontsize=12,
+        alignment="right",
+    )
+    ax.add_artist(leg1)
+    ax.legend(
+        handles=setting_elements,
+        bbox_to_anchor=(-0.08, 1.0),
+        loc="upper left",
+        borderaxespad=0.0,
+        ncol=1,
+        frameon=False,
+        fontsize=12,
+        title_fontsize=12,
+    )
+
+
+def add_arrows(ax, model_points, models_to_connect):
+    for model in models_to_connect:
+        if model not in model_points:
+            continue
+
+        start = model_points[model]["Unwatermarked"]
+        kgw = model_points[model].get("KGW")
+        gumbel = model_points[model].get("Gumbel")
+
+        if not (kgw and gumbel):
+            continue
+
+        for end_point, rad in [(kgw, 0.6), (gumbel, -0.3)]:
+            distance = (
+                (end_point[0] - start[0]) ** 2 + (end_point[1] - start[1]) ** 2
+            ) ** 0.5
+            offset = max(0.01 * (1 / distance), 0.005)
+            adjusted_end = (
+                end_point[0] - (end_point[0] - start[0]) * offset,
+                end_point[1] - (end_point[1] - start[1]) * offset,
+            )
+
+            arrow = ConnectionPatch(
+                xyA=start,
+                xyB=adjusted_end,
+                coordsA="data",
+                coordsB="data",
+                axesA=ax,
+                axesB=ax,
+                connectionstyle=f"arc3,rad={rad}",
+                arrowstyle="->",
+                color="black",
+                linewidth=1,
+                zorder=5,
+            )
+            ax.add_patch(arrow)
+
+
 def plot(df: pd.DataFrame, markers: dict[str, str]):
-    # Normalize each row to create probability distributions
+    # Normalize data
     metrics = ["Safe", "Unsafe", "Overrefusal"]
     for idx in df.index:
         total = df.loc[idx, metrics].sum()
         df.loc[idx, metrics] = df.loc[idx, metrics] / total
 
-    # Define colors for different settings
     colors = {"KGW": "#ff7f0e", "Gumbel": "#2ca02c", "Unwatermarked": "#1f77b4"}
 
     with prp.get_context(layout=prp.Layout.ICML, single_col=True) as (fig, ax):
-        tax = ternary.TernaryAxesSubplot(ax=ax, scale=1.0)
+        tax = setup_ternary_plot(ax)
 
-        # Plot points for each model and setting
-        for model in markers:
-            for setting in colors:
-                mask = (df["Model Name"] == model) & (df["Setting"] == setting)
-                if mask.any():
-                    point = df[mask].iloc[0]
-                    # Get normalized coordinates
-                    coords = (point["Safe"], point["Unsafe"], point["Overrefusal"])
-                    tax.scatter(
-                        [coords],
-                        marker=markers[model],
-                        color=colors[setting],
-                        s=100,
-                        label=f"{model} ({setting})",
-                        zorder=10,
-                    )  # Ensure points are above grid lines
-
-        # Store points for arrows
+        # Plot points and collect coordinates
         model_points = {}
         for model in markers:
             model_points[model] = {}
             for setting in colors:
                 mask = (df["Model Name"] == model) & (df["Setting"] == setting)
-                if mask.any():
-                    point = df[mask].iloc[0]
-                    coords = (point["Safe"], point["Unsafe"], point["Overrefusal"])
-                    # Plot points and get the collection object directly
-                    scatter_points = tax.scatter(
-                        [coords],
-                        marker=markers[model],
-                        color=colors[setting],
-                        s=100,
-                        label=f"{model} ({setting})",
-                        zorder=10,
+                if not mask.any():
+                    continue
+
+                point = df[mask].iloc[0]
+                coords = (point["Safe"], point["Unsafe"], point["Overrefusal"])
+                scatter_points = tax.scatter(
+                    [coords],
+                    marker=markers[model],
+                    color=colors[setting],
+                    s=100,
+                    label=f"{model} ({setting})",
+                    zorder=10,
+                )
+
+                if ax.collections:
+                    last_collection = ax.collections[-1]
+                    model_points[model][setting] = tuple(
+                        last_collection.get_offsets()[0]
                     )
-                    # Get the last added collection which contains our point
-                    collections = ax.collections
-                    if collections:
-                        last_collection = collections[-1]
-                        model_points[model][setting] = (
-                            last_collection.get_offsets()[0][0],
-                            last_collection.get_offsets()[0][1],
-                        )
 
-        # Add curved arrows for Qwen and Phi models
-        models_to_connect = ["Qwen2-7B-Instruct", "Phi-3-mini-4k-instruct"]
-        for model in models_to_connect:
-            if model in model_points:
-                start = model_points[model]["Unwatermarked"]
-                kgw = model_points[model].get("KGW")
-                gumbel = model_points[model].get("Gumbel")
-
-                if kgw and gumbel:
-                    # Create curved arrows with different curvatures
-                    arrow_params = [
-                        (kgw, 0.6),  # More curved for KGW
-                        (gumbel, -0.3),  # Opposite curve for Gumbel
-                    ]
-
-                    for end_point, rad in arrow_params:
-                        # Calculate distance between points
-                        distance = (
-                            (end_point[0] - start[0]) ** 2
-                            + (end_point[1] - start[1]) ** 2
-                        ) ** 0.5
-
-                        # Adjust offset based on distance
-                        # Smaller distance -> larger offset (up to 0.25)
-                        # Larger distance -> smaller offset (down to 0.1)
-                        base_offset = 0.01
-                        min_offset = 0.005
-                        offset = max(base_offset * (1 / distance), min_offset)
-
-                        adjusted_end = (
-                            end_point[0] - (end_point[0] - start[0]) * offset,
-                            end_point[1] - (end_point[1] - start[1]) * offset,
-                        )
-
-                        arrow = ConnectionPatch(
-                            xyA=start,
-                            xyB=adjusted_end,
-                            coordsA="data",
-                            coordsB="data",
-                            axesA=ax,
-                            axesB=ax,
-                            connectionstyle=f"arc3,rad={rad}",
-                            arrowstyle="->",
-                            color="black",
-                            linewidth=1,
-                            zorder=5,
-                        )
-                        ax.add_patch(arrow)
-
-        # Remove the square boundary by setting the axis off
-        ax.set_axis_off()
-
-        # Keep the triangular boundary
-        tax.boundary(linewidth=1.0)
-        # tax.gridlines(multiple=0.1, color="gray", linewidth=0.5, alpha=0.3)
-
-        # Remove the background by setting it to white
-        tax.get_axes().set_facecolor("white")
-
-        # Add vertex labels with larger font and smaller offset
-        fontsize = 12
-        offset = 0.02  # Reduced from 0.1 to 0.05
-        tax.annotate(
-            "Safe",
-            (1.0 + offset, -offset, 0.0),
-            fontsize=fontsize,
-            ha="left",  # Changed to left align
-            va="center",
-        )
-        tax.annotate(
-            "Unsafe",
-            (offset, 1.0 + offset, 0.0),
-            fontsize=fontsize,
-            ha="right",  # Changed to right align
-            va="bottom",
-        )
-        tax.annotate(
-            "Overrefusal",
-            (-offset, offset, 1.0 + offset),
-            fontsize=fontsize,
-            ha="right",  # Changed to right align
-            va="top",
-        )
-
-        # Remove axis labels since we're using vertex labels
-        tax.clear_matplotlib_ticks()
-
-        # # Add title
-        # plt.title(
-        #     "Normalized Response Rates in Probability Simplex", y=1.05, fontsize=14
-        # )
-
-        # Create separate legend elements for models and settings
-        model_legend_elements = []
-        settings_legend_elements = []
-
-        # Model markers
-        for model, marker in markers.items():
-            model_name = extract_model_name(model)
-            model_legend_elements.append(
-                plt.Line2D(
-                    [0],
-                    [0],
-                    marker=marker,
-                    color="gray",
-                    label=model_name,
-                    markersize=8,
-                    linestyle="None",
-                )
-            )
-
-        # Setting colors
-        for setting, color in colors.items():
-            settings_legend_elements.append(
-                plt.Line2D(
-                    [0],
-                    [0],
-                    marker="o",
-                    color=color,
-                    label=setting,
-                    markersize=8,
-                    linestyle="None",
-                )
-            )
-
-        # Add two separate legends
-        # First legend (Models)
-        leg1 = ax.legend(
-            handles=model_legend_elements,
-            bbox_to_anchor=(1.0, 1.0),
-            loc="upper right",
-            borderaxespad=0.0,
-            ncol=1,
-            frameon=False,
-            fontsize=12,
-            title_fontsize=12,
-            alignment="right",
-        )
-
-        # Add the first legend manually to the axis
-        ax.add_artist(leg1)
-
-        # Second legend (Settings)
-        ax.legend(
-            handles=settings_legend_elements,
-            bbox_to_anchor=(-0.08, 1.0),
-            loc="upper left",
-            borderaxespad=0.0,
-            ncol=1,
-            frameon=False,
-            fontsize=12,
-            title_fontsize=12,
-        )
-
-        # Adjust layout to center the figure
-        plt.tight_layout(
-            rect=[-0.1, 0, 1, 1]
-        )  # Shifts everything left by adjusting the left margin
+        add_arrows(ax, model_points, ["Qwen2-7B-Instruct", "Phi-3-mini-4k-instruct"])
+        add_vertex_labels(tax)
+        create_legends(ax, markers, colors)
+        plt.tight_layout(rect=[-0.1, 0, 1, 1])
         plt.show()
 
 

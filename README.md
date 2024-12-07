@@ -50,4 +50,10 @@ python plots/plot_bars.py --input_dir $HOME/mint/watermarking-analysis/exp_012_s
 bash experiment4/run.sh
 
 python run_refusal_scorer.py --input_path $HOME/mint/watermarking-analysis/EXP_004_refusal --output_path $HOME/mint/watermarking-analysis/EXP_004_refusal --scorer_name exact-match --batch_size 1
+
+python plots/plot_simplex.py --input_path $HOME/mint/watermarking-analysis/SimplexData_v1.tsv
+
+python plots/plot_simplex.py --input_path $HOME/mint/watermarking-analysis/SimplexData_v1.tsv  --model_name "Meta-Llama-3.1-8B-Instruct"
+
+
 ```
