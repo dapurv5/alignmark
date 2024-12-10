@@ -34,10 +34,6 @@ class WmGenerator:
         self.rng.manual_seed(self.seed)
         self.payload = payload
 
-        # Compile model if possible
-        if hasattr(torch, "compile"):
-            self.model = torch.compile(self.model)
-
         # Move hashtable to GPU if available
         self.device = self.model.device
         self.hashtable = torch.randperm(1000003).to(self.device)
