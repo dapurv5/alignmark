@@ -98,7 +98,7 @@ class WmGenerator:
         prev_pos = 0
         outputs = None
 
-        with torch.cuda.amp.autocast():  # Enable AMP for faster computation
+        with torch.amp.autocast("cuda"):  # Enable AMP for faster computation
             for cur_pos in range(start_pos, total_len):
                 outputs = self.model.forward(
                     tokens[:, prev_pos:cur_pos],
