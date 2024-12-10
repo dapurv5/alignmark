@@ -34,9 +34,17 @@ class WmGenerator:
         self.rng.manual_seed(self.seed)
         self.payload = payload
 
+        # Compile model if possible
+        if hasattr(torch, "compile"):
+            self.model = torch.compile(self.model)
+
+        # Move hashtable to GPU if available
+        self.device = self.model.device
+        self.hashtable = torch.randperm(1000003).to(self.device)
+
     def hashint(self, integer_tensor: torch.LongTensor) -> torch.LongTensor:
-        """Adapted from https://github.com/jwkirchenbauer/lm-watermarking"""
-        return self.hashtable[integer_tensor.cpu() % len(self.hashtable)]
+        """Optimized hashint using GPU."""
+        return self.hashtable[integer_tensor % len(self.hashtable)]
 
     def get_seed_rng(self, input_ids: torch.LongTensor) -> int:
         """
@@ -58,7 +66,7 @@ class WmGenerator:
             seed = torch.min(seed).item()
         return seed
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def generate(
         self,
         prompts: List[str],
@@ -79,28 +87,32 @@ class WmGenerator:
         max_prompt_size = max([len(t) for t in prompt_tokens])
         total_len = min(self.max_seq_len, max_gen_len + max_prompt_size)
 
-        tokens = torch.full((bsz, total_len), self.pad_id).to(self.model.device).long()
+        tokens = torch.full((bsz, total_len), self.pad_id, device=self.device).long()
         for k, t in enumerate(prompt_tokens):
-            tokens[k, : min(len(t), total_len)] = torch.tensor(t[:total_len]).long()
+            tokens[k, : min(len(t), total_len)] = torch.tensor(
+                t[:total_len], device=self.device
+            ).long()
         input_text_mask = tokens != self.pad_id
 
         start_pos = min_prompt_size
         prev_pos = 0
         outputs = None
-        for cur_pos in range(start_pos, total_len):
-            outputs = self.model.forward(
-                tokens[:, prev_pos:cur_pos],
-                use_cache=True,
-                past_key_values=outputs.past_key_values if prev_pos > 0 else None,
-            )
-            ngram_tokens = tokens[:, cur_pos - self.ngram : cur_pos]
-            next_toks = self.sample_next(
-                outputs.logits[:, -1, :], ngram_tokens, temperature, top_p
-            )
-            tokens[:, cur_pos] = torch.where(
-                input_text_mask[:, cur_pos], tokens[:, cur_pos], next_toks
-            )
-            prev_pos = cur_pos
+
+        with torch.cuda.amp.autocast():  # Enable AMP for faster computation
+            for cur_pos in range(start_pos, total_len):
+                outputs = self.model.forward(
+                    tokens[:, prev_pos:cur_pos],
+                    use_cache=True,
+                    past_key_values=outputs.past_key_values if prev_pos > 0 else None,
+                )
+                ngram_tokens = tokens[:, cur_pos - self.ngram : cur_pos]
+                next_toks = self.sample_next(
+                    outputs.logits[:, -1, :], ngram_tokens, temperature, top_p
+                )
+                tokens[:, cur_pos] = torch.where(
+                    input_text_mask[:, cur_pos], tokens[:, cur_pos], next_toks
+                )
+                prev_pos = cur_pos
 
         decoded = []
         for i, t in enumerate(tokens.tolist()):
