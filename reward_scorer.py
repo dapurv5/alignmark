@@ -19,6 +19,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 ROLE_TAGS = ["\n\nHuman:", "\n\nAssistant:"]
+REMOVE_TOKENS = ["&quot;", "&quot"]
 
 
 def cleanup(data: dict):
@@ -35,8 +36,9 @@ def cleanup(data: dict):
     data = leave_last_block(data, "watermarked_text")
     data = leave_last_block(data, "unwatermarked_text")
     # Remove noise tokens
-    data = remove_token(data, "watermarked_text", "&quot;")
-    data = remove_token(data, "unwatermarked_text", "&quot;")
+    for token in REMOVE_TOKENS:
+        data = remove_token(data, "watermarked_text", token)
+        data = remove_token(data, "unwatermarked_text", token)
     return data
 
 
