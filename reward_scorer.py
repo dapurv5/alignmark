@@ -7,8 +7,37 @@ from collections import OrderedDict
 import llm_blender
 from tqdm import tqdm
 
+from cleanup_utils import (
+    leave_last_block,
+    prune_multiple_turns,
+    remove_question_from_response,
+    remove_role_tags,
+    remove_token,
+)
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+ROLE_TAGS = ["\n\nHuman:", "\n\nAssistant:"]
+
+
+def cleanup(data: dict):
+    # Remove the question from the prompt
+    data = remove_question_from_response(data, "prompt", "watermarked_text")
+    data = remove_question_from_response(data, "prompt", "unwatermarked_text")
+    # Remove the role tags from the prompt
+    data = remove_role_tags(data, ROLE_TAGS, "prompt")
+    # Prune multiple turns
+    for role_tag in ROLE_TAGS:
+        data = prune_multiple_turns(data, "watermarked_text", role_tag)
+        data = prune_multiple_turns(data, "unwatermarked_text", role_tag)
+    # Leave the last block
+    data = leave_last_block(data, "watermarked_text")
+    data = leave_last_block(data, "unwatermarked_text")
+    # Remove noise tokens
+    data = remove_token(data, "watermarked_text", "&quot;")
+    data = remove_token(data, "unwatermarked_text", "&quot;")
+    return data
 
 
 class RewardScorerBase:
@@ -29,6 +58,7 @@ class RewardScorerBase:
         with open(input_path, "r") as input_fp, open(output_path, "w") as output_fp:
             for line in tqdm(input_fp):
                 data = json.loads(line)
+                data = cleanup(data)
                 scores = OrderedDict(
                     [
                         ("watermarked_text", data["watermarked_text"]),

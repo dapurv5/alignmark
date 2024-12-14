@@ -35,3 +35,17 @@ def pick_first_k_blocks(data: dict, fieldname: str = "watermarked_text", k: int 
     if "\n\n" in data[fieldname]:
         data[fieldname] = "\n".join(data[fieldname].split("\n\n")[:k])
     return data
+
+
+def leave_last_block(data: dict, fieldname: str = "watermarked_text"):
+    if "\n\n" in data[fieldname]:
+        data[fieldname] = "\n".join(data[fieldname].split("\n\n")[:-1])
+    return data
+
+
+def remove_token(
+    data: dict, fieldname: str = "watermarked_text", token: str = "&quot;"
+):
+    if token in data[fieldname]:
+        data[fieldname] = data[fieldname].replace(token, "").strip()
+    return data
