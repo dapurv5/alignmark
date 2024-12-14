@@ -13,6 +13,8 @@ from bleurt_pytorch import (
 from openai import OpenAI
 from tqdm import tqdm
 
+from cleanup_utils import remove_question_from_response
+
 nltk.download("punkt")
 nltk.download("punkt_tab")
 
@@ -22,13 +24,8 @@ logger = logging.getLogger(__name__)
 
 def cleanup(data: dict):
     # Remove the question from the generated text
-    if "question" in data:
-        data["watermarked_text"] = (
-            data["watermarked_text"].replace(data["question"], "").strip()
-        )
-        data["unwatermarked_text"] = (
-            data["unwatermarked_text"].replace(data["question"], "").strip()
-        )
+    data = remove_question_from_response(data, "question", "watermarked_text")
+    data = remove_question_from_response(data, "question", "unwatermarked_text")
 
     def get_first_sentence(text):
         ans = ""
