@@ -10,7 +10,7 @@ from tqdm import tqdm
 from cleanup_utils import (
     leave_last_block,
     prune_multiple_turns,
-    remove_question_from_response,
+    remove_prompt_from_response,
     remove_role_tags,
     remove_token,
 )
@@ -23,8 +23,8 @@ ROLE_TAGS = ["\n\nHuman:", "\n\nAssistant:"]
 
 def cleanup(data: dict):
     # Remove the question from the prompt
-    data = remove_question_from_response(data, "prompt", "watermarked_text")
-    data = remove_question_from_response(data, "prompt", "unwatermarked_text")
+    data = remove_prompt_from_response(data, "prompt", "watermarked_text")
+    data = remove_prompt_from_response(data, "prompt", "unwatermarked_text")
     # Remove the role tags from the prompt
     data = remove_role_tags(data, ROLE_TAGS, "prompt")
     # Prune multiple turns
