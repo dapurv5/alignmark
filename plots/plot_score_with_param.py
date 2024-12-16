@@ -1,4 +1,3 @@
-import json
 import os
 from collections import defaultdict
 from itertools import cycle
@@ -8,125 +7,11 @@ import numpy as np
 import pub_ready_plots as prp
 from fire import Fire
 
-
-def read_jsonl(file_path: str) -> list[dict]:
-    with open(file_path, "r") as f:
-        return [json.loads(line) for line in f]
-
-
-def parse_filename(filename: str) -> dict:
-    filename = filename.replace(".jsonl", "")
-    filename_parts = filename.split("_")
-    dataset_name = filename_parts[1]
-    model_name = filename_parts[2]
-    watermark_type = filename_parts[3]
-    seed = filename_parts[4]
-    params = {}
-    idx = 4
-    for part in filename_parts[5:]:
-        idx += 1
-        if part.startswith(("delta", "gamma", "ngram", "temperature")):
-            key, value = part, filename_parts[idx + 1]
-            params[key] = float(value) if key != "ngram" else int(value)
-
-    return {
-        "dataset_name": dataset_name,
-        "model_name": model_name,
-        "watermark_type": watermark_type,
-        "seed": seed,
-    } | params
-
-
-def process_files(
-    input_dir: str,
-    model_name_to_plot: str,
-    param_name_to_plot: str,
-    score_name: str,
-) -> dict[tuple[str, str], dict[str, list[tuple[float, list[float], list[float]]]]]:
-    """
-    Process all the files in the input directory and return a dictionary
-    with (watermark_type, dataset_name) as keys and a list of tuples containing
-    the param_name, watermarked scores, and unwatermarked scores.
-
-    Args:
-        input_dir (str): The directory containing the score files.
-        model_name_to_plot (str): The name of the model to plot.
-        param_name_to_plot (str): The name of the parameter which varies.
-    Returns:
-        dict[tuple[str, str], dict[str, list[tuple[float, list[float], list[float]]]]: A dictionary
-        with (watermark_type, dataset_name) as keys and a list of tuples containing
-        the param_name, watermarked scores, and unwatermarked scores.
-    """
-    data: dict[
-        tuple[str, str], dict[str, list[tuple[float, list[float], list[float]]]]
-    ] = {}
-    for filename in os.listdir(input_dir):
-        filename_ = filename
-        filename = filename.replace(
-            "truthful_qa", "truthfulqa"
-        )  # no _ allowed in dataset name
-        if filename.endswith(f"_{score_name}.jsonl") or filename.endswith(
-            f"_{score_name}s.jsonl"  # Needed for reward and rewards discrepancy
-        ):
-            print(f"Processing {filename}")
-            file_path = os.path.join(input_dir, filename_)
-            parsed_info = parse_filename(filename)
-            if (
-                param_name_to_plot in parsed_info
-                and parsed_info["model_name"] == model_name_to_plot
-            ):
-                param_value = parsed_info[param_name_to_plot]
-                dataset_name = parsed_info["dataset_name"]
-                watermark_type = parsed_info["watermark_type"]
-                seed = parsed_info["seed"]
-
-                blobs = read_jsonl(file_path)
-                watermarked_sc = [
-                    (
-                        blob[f"watermarked_{score_name}_score"]
-                        if f"watermarked_{score_name}_score" in blob
-                        else blob[f"watermarked_text_{score_name}_score"]
-                    )
-                    for blob in blobs
-                ]
-                unwatermarked_sc = [
-                    (
-                        blob[f"unwatermarked_{score_name}_score"]
-                        if f"unwatermarked_{score_name}_score" in blob
-                        else blob[f"unwatermarked_text_{score_name}_score"]
-                    )
-                    for blob in blobs
-                ]
-                key = (watermark_type, dataset_name)
-                if key not in data:
-                    data[key] = {}
-                if seed not in data[key]:
-                    data[key][seed] = []
-                data[key][seed].append((param_value, watermarked_sc, unwatermarked_sc))
-
-    # Sort the lists for each key, seed by param_name
-    for key in data:
-        for seed in data[key]:
-            data[key][seed] = sorted(data[key][seed], key=lambda x: x[0])
-    # Also sort the keys in the dictionary and make it ordered
-    data = dict(sorted(data.items()))
-    return data
-
-
-def get_short_model_name(model_name: str) -> str:
-    return {
-        "Mistral-7B-Instruct-v0.3": "Mistral-7B-Inst",
-        "Meta-Llama-3.1-8B-Instruct": "LLaMA-8B-Inst",
-        "gemma-2-9b-it": "Gemma-9B-Inst",
-        "Phi-3-mini-4k-instruct": "Phi-3-Mini-Inst",
-    }.get(model_name, model_name)
-
-
-def get_short_watermark_name(watermark_type: str) -> str:
-    return {
-        "maryland": "KGW (Distort)",
-        "openai": "Gumbel (Dist-Free)",
-    }.get(watermark_type, watermark_type)
+from plots.plot_utils import (
+    get_short_model_name,
+    get_short_watermark_name,
+    process_files,
+)
 
 
 def plot_scores(
