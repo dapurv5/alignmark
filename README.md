@@ -17,7 +17,8 @@ pip install git+https://github.com/lucadiliello/bleurt-pytorch.git
 ```
 ### EXPERIMENT 1 (Reward Scores Gap)
 
-bash experiment1/sweep.sh
+bash experiment1/sweep_maryland.sh
+bash experiment1/sweep_openai.sh
 
 # Run reward scorer
 python run_reward_scorer.py --input_path /project/phan/av787/projs/watermarking/outputs/exp_005_sweep_temperature_hh-rlhf_1k --output_path /project/phan/av787/projs/watermarking/outputs/exp_005_sweep_temperature_hh-rlhf_1k
@@ -56,4 +57,19 @@ python plots/plot_simplex.py --input_path $HOME/mint/watermarking-analysis/Simpl
 python plots/plot_simplex.py --input_path $HOME/mint/watermarking-analysis/SimplexData_v1.tsv  --model_name "Meta-Llama-3.1-8B-Instruct"
 
 python plots/plot_stacked_bar_chart.py --input_path $HOME/mint/watermarking-analysis/SimplexData_v3.tsv
+
+
+### EXPERIMENT 5 (Feasability)
+
+bash experiment1/sweep_maryland.sh
+bash experiment1/sweep_openai.sh
+
+# Run reward scorer
+python run_reward_scorer.py --input_path /project/phan/av787/projs/watermarking/outputs/EXP_001_maryland_viability_sweep --output_path /project/phan/av787/projs/watermarking/outputs/EXP_001_maryland_viability_sweep
+
+python run_reward_scorer.py --input_path /project/phan/av787/projs/watermarking/outputs/EXP_001_openai_viability_sweep --output_path /project/phan/av787/projs/watermarking/outputs/EXP_001_openai_viability_sweep
+
+python plots/table_threshold_diff.py --input_dir $HOME/mint/watermarking-feasability-exps/EXP_001_maryland_viability_sweep --score_name reward --model_name_to_plot Llama-3.1-8B-Instruct
+
+python plots/table_threshold_diff.py --input_dir $HOME/mint/watermarking-feasability-exps/EXP_001_openai_viability_sweep --score_name reward --model_name_to_plot Llama-3.1-8B-Instruct
 ```

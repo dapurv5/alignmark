@@ -114,8 +114,8 @@ def process_files(
                 seed = parsed_info["seed"]
 
                 blobs = read_jsonl(file_path)
-                watermarked_sc = _get_scores(blobs, "watermarked", score_name)
-                unwatermarked_sc = _get_scores(blobs, "unwatermarked", score_name)
+                watermarked_sc: list = _get_scores(blobs, "watermarked", score_name)
+                unwatermarked_sc: list = _get_scores(blobs, "unwatermarked", score_name)
                 key = (watermark_type, dataset_name)
                 if key not in data:
                     data[key] = {}
@@ -132,6 +132,7 @@ def get_short_model_name(model_name: str) -> str:
         "Meta-Llama-3.1-8B-Instruct": "LLaMA-8B-Inst",
         "gemma-2-9b-it": "Gemma-9B-Inst",
         "Phi-3-mini-4k-instruct": "Phi-3-Mini-Inst",
+        "Llama-3.1-8B-Instruct": "LLaMA-8B-Inst",
     }.get(model_name, model_name)
 
 
