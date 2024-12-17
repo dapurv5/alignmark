@@ -52,8 +52,6 @@ bash experiment4/run.sh
 
 python run_refusal_scorer.py --input_path $HOME/mint/watermarking-analysis/EXP_004_refusal --output_path $HOME/mint/watermarking-analysis/EXP_004_refusal --scorer_name exact-match --batch_size 1
 
-python plots/plot_simplex.py --input_path $HOME/mint/watermarking-analysis/SimplexData_v1.tsv
-
 python plots/plot_simplex.py --input_path $HOME/mint/watermarking-analysis/SimplexData_v1.tsv  --model_name "Meta-Llama-3.1-8B-Instruct"
 
 python plots/plot_stacked_bar_chart.py --input_path $HOME/mint/watermarking-analysis/SimplexData_v3.tsv
@@ -69,7 +67,5 @@ python run_reward_scorer.py --input_path /project/phan/av787/projs/watermarking/
 
 python run_reward_scorer.py --input_path /project/phan/av787/projs/watermarking/outputs/EXP_001_openai_viability_sweep --output_path /project/phan/av787/projs/watermarking/outputs/EXP_001_openai_viability_sweep
 
-python plots/table_threshold_diff.py --input_dir $HOME/mint/watermarking-feasability-exps/EXP_001_maryland_viability_sweep --score_name reward --model_name_to_plot Llama-3.1-8B-Instruct
-
-python plots/table_threshold_diff.py --input_dir $HOME/mint/watermarking-feasability-exps/EXP_001_openai_viability_sweep --score_name reward --model_name_to_plot Llama-3.1-8B-Instruct
+bash plots/table_threshold_diff.sh
 ```
