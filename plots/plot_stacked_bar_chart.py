@@ -8,13 +8,13 @@ from fire import Fire
 def extract_model_name(filepath):
     filename = str(filepath)
     if "Meta-Llama" in filename:
-        return "LLaMA-8B-Inst"
+        return "LLaMA-8B"
     elif "Mistral" in filename:
-        return "Mistral-7B-Inst"
+        return "Mistral-7B"
     elif "Phi-3" in filename:
-        return "Phi-3-Mini-Inst"
+        return "Phi-3-Mini"
     elif "Qwen2" in filename:
-        return "Qwen2-7B-Inst"
+        return "Qwen2-7B"
     return "Unknown"
 
 
@@ -50,15 +50,18 @@ def plot(df: pd.DataFrame):
     # Calculate deltas
     delta_df = calculate_deltas(df)
 
-    # Colors for different settings
-    colors = {"KGW": "#ff7f0e", "Gumbel": "#2ca02c"}
+    # Colors using ICML color scheme
+    colors = {
+        "KGW": "#FF8C00",  # Orange
+        "Gumbel": "#2CA02C",  # ICML green
+    }
 
     with prp.get_context(layout=prp.Layout.ICML, single_col=True) as (fig, ax):
         # Clear the main axis as we'll create our own subplots
         ax.remove()
 
-        # Create two subplots using the existing figure
-        gs = fig.add_gridspec(1, 2, hspace=0.3, wspace=0.3)
+        # Create two subplots with more space between them
+        gs = fig.add_gridspec(1, 2, hspace=0.3, wspace=0.4)  # Increased wspace
         ax1 = fig.add_subplot(gs[0, 0])
         ax2 = fig.add_subplot(gs[0, 1])
 
@@ -83,7 +86,15 @@ def plot(df: pd.DataFrame):
                 for model in model_order
             ]
 
-            ax1.bar(x + i * width, data, width, label=setting, color=colors[setting])
+            ax1.bar(
+                x + i * width,
+                data,
+                width,
+                label=setting,
+                color=colors[setting],
+                edgecolor="none",
+                alpha=0.7,
+            )
 
         ax1.set_ylabel("Δ Unsafe Responses")
         ax1.set_title("Change in Unsafe Responses")
@@ -98,29 +109,48 @@ def plot(df: pd.DataFrame):
                 for model in model_order
             ]
 
-            ax2.bar(x + i * width, data, width, label=setting, color=colors[setting])
+            ax2.bar(
+                x + i * width,
+                data,
+                width,
+                label=setting,
+                color=colors[setting],
+                edgecolor="none",
+                alpha=0.7,
+            )
 
         ax2.set_ylabel("Δ Overrefusal Count")
         ax2.set_title("Change in Overrefusal")
 
-        # Customize both subplots
+        # Customize both subplots with improved formatting
         for ax in [ax1, ax2]:
             ax.set_xticks(x + width / 2)
             ax.set_xticklabels(
                 [extract_model_name(model) for model in model_order],
-                rotation=45,
-                ha="right",
+                ha="center",
+                fontsize=14,  # Increased from 12
             )
             ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5, alpha=0.3)
-            ax.grid(True, axis="y", linestyle="--", alpha=0.3)
+            ax.grid(True, axis="y", linestyle="--", alpha=0.2)
 
-        # Add legend to the first subplot only
-        ax1.legend(title="Watermarking", bbox_to_anchor=(1.05, 1), loc="upper left")
+            # Increase font sizes
+            ax.tick_params(axis="both", labelsize=14)  # Increased from 12
+            ax.set_ylabel(ax.get_ylabel(), fontsize=16)  # Increased from 14
+            ax.set_title(ax.get_title(), fontsize=16, pad=10)  # Increased from 14
 
-        # Adjust layout
-        plt.tight_layout()
+        # Update legend formatting
+        ax1.legend(
+            title="Watermarking",
+            bbox_to_anchor=(1.05, 1),
+            loc="upper left",
+            fontsize=14,  # Increased from 12
+            title_fontsize=15,  # Increased from 13
+        )
 
-        # Save the figure
+        # Adjust layout with more space
+        plt.tight_layout(pad=1.5)  # Increased padding
+
+        # Save the figure with higher quality
         plt.savefig("watermarking_effects.pdf", bbox_inches="tight", dpi=300)
 
         # Display the plot
