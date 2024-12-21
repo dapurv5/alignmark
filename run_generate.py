@@ -31,6 +31,7 @@ def run_generator(
     format_prompt_as_instructions: bool = False,
     pairs_generator: bool = False,
     num_generations_per_prompt: int = 1,
+    turn_shuffle_off: bool = False,
     **kwargs,
 ):
     if pairs_generator:
@@ -52,6 +53,7 @@ def run_generator(
             batch_size=batch_size,
             format_prompt_as_instructions=format_prompt_as_instructions,
             num_generations_per_prompt=num_generations_per_prompt,
+            turn_shuffle_off=turn_shuffle_off,
             **kwargs,
         )
     generator.generate(examples)
@@ -70,6 +72,9 @@ def main(
     format_prompt_as_instructions: bool = False,
     pairs_generator: bool = False,
     num_generations_per_prompt: int = 1,
+    turn_shuffle_off: bool = False,
+    dataset_start_row: int = 0,
+    dataset_end_row: int = -1,
     **kwargs,
 ):
     seed_everything(seed)
@@ -94,6 +99,8 @@ def main(
 
     if limit_dataset_size > 0 and hasattr(dataset, "select"):
         dataset = dataset.select(range(limit_dataset_size))
+    if dataset_start_row >= 0 and dataset_end_row >= 0:
+        dataset = dataset.select(range(dataset_start_row, dataset_end_row))
     os.makedirs(exp_dir, exist_ok=True)
 
     def simple_name(name):
@@ -107,6 +114,8 @@ def main(
         f"{watermark_name}_"
         f"{seed}"
     )
+    if dataset_start_row >= 0 and dataset_end_row >= 0:
+        run_name = f"part_{dataset_start_row}_{dataset_end_row}_" + run_name
     if "temperature" in kwargs:
         run_name += f"_temperature_{kwargs['temperature']}"
     for param_name in ["delta", "gamma", "ngram"]:
@@ -124,6 +133,7 @@ def main(
         format_prompt_as_instructions=format_prompt_as_instructions,
         pairs_generator=pairs_generator,
         num_generations_per_prompt=num_generations_per_prompt,
+        turn_shuffle_off=turn_shuffle_off,
         **kwargs,
     )
 

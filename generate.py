@@ -21,6 +21,7 @@ class BaseWatermarkGenerator(ABC):
         text_field: str = "prompt",
         format_prompt_as_instructions: bool = False,
         num_generations_per_prompt: int = 1,  # only used for non-pairs generator
+        turn_shuffle_off: bool = False,
         **kwargs,
     ):
         self.model_name = model_name
@@ -48,6 +49,9 @@ class BaseWatermarkGenerator(ABC):
         )
         self.format_prompt_as_instructions = format_prompt_as_instructions
         self.num_generations_per_prompt = num_generations_per_prompt
+        self.turn_shuffle_off = turn_shuffle_off
+        self.dataset_start_row = dataset_start_row
+        self.dataset_end_row = dataset_end_row
         self.kwargs = kwargs
 
     def _infer_vocab_size(self, model, tokenizer):
@@ -139,15 +143,16 @@ class BaseWatermarkGenerator(ABC):
 
     def generate(self, examples: Any, **gen_kwargs_override):
         # shuffle examples
-        if isinstance(examples, list):
-            random.shuffle(examples)
-        elif hasattr(examples, "shuffle"):
-            # For Dataset objects that have a shuffle method
-            examples = examples.shuffle(seed=self.kwargs.get("seed", 42))
-        else:
-            print(
-                "Warning: Unable to shuffle examples. Proceeding with original order."
-            )
+        if not self.turn_shuffle_off:
+            if isinstance(examples, list):
+                random.shuffle(examples)
+            elif hasattr(examples, "shuffle"):
+                # For Dataset objects that have a shuffle method
+                examples = examples.shuffle(seed=self.kwargs.get("seed", 42))
+            else:
+                print(
+                    "Warning: Unable to shuffle examples. Proceeding with original order."
+                )
         gen_kwargs = {
             k: self.kwargs[k]
             for k in ["max_gen_len", "top_p", "temperature"]
