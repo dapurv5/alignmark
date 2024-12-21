@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from datasets import load_dataset
 
-from generate import WatermarkTextPairsGenerator
+from generate import WatermarkTextGenerator, WatermarkTextPairsGenerator
 
 
 def seed_everything(seed: int):
@@ -29,17 +29,31 @@ def run_generator(
     threshold: float = 0.05,
     batch_size: int = 16,
     format_prompt_as_instructions: bool = False,
+    pairs_generator: bool = False,
+    num_generations_per_prompt: int = 1,
     **kwargs,
 ):
-    generator = WatermarkTextPairsGenerator(
-        model_name,
-        watermark_name,
-        output_path,
-        threshold=threshold,
-        batch_size=batch_size,
-        format_prompt_as_instructions=format_prompt_as_instructions,
-        **kwargs,
-    )
+    if pairs_generator:
+        generator = WatermarkTextPairsGenerator(
+            model_name,
+            watermark_name,
+            output_path,
+            threshold=threshold,
+            batch_size=batch_size,
+            format_prompt_as_instructions=format_prompt_as_instructions,
+            **kwargs,
+        )
+    else:
+        generator = WatermarkTextGenerator(
+            model_name,
+            watermark_name,
+            output_path,
+            threshold=threshold,
+            batch_size=batch_size,
+            format_prompt_as_instructions=format_prompt_as_instructions,
+            num_generations_per_prompt=num_generations_per_prompt,
+            **kwargs,
+        )
     generator.generate(examples)
 
 
@@ -49,11 +63,13 @@ def main(
     dataset_name: str = "",
     dataset_subset_name: str = "",
     dataset_split: str = "test",
-    watermark_name: str = "openai",  # openai, maryland, no_watermark
+    watermark_name: str = "openai",  # openai, maryland, unwatermarked, vllm-unwatermarked
     limit_dataset_size: int = -1,
     seed: int = 42,
     dataset_path: str = None,
     format_prompt_as_instructions: bool = False,
+    pairs_generator: bool = False,
+    num_generations_per_prompt: int = 1,
     **kwargs,
 ):
     seed_everything(seed)
@@ -106,6 +122,8 @@ def main(
         examples=dataset,
         output_path=output_path,
         format_prompt_as_instructions=format_prompt_as_instructions,
+        pairs_generator=pairs_generator,
+        num_generations_per_prompt=num_generations_per_prompt,
         **kwargs,
     )
 

@@ -1,6 +1,7 @@
 import json
 import random
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from typing import Any
 
 import numpy as np
@@ -19,10 +20,11 @@ class BaseWatermarkGenerator(ABC):
         batch_size: int = 16,
         text_field: str = "prompt",
         format_prompt_as_instructions: bool = False,
+        num_generations_per_prompt: int = 1,  # only used for non-pairs generator
         **kwargs,
     ):
         self.model_name = model_name
-        self.watermark_name = watermark_name  # openai, maryland, no_watermark
+        self.watermark_name = watermark_name  # openai, maryland, unwatermarked
         self.output_path = output_path
         self.threshold = threshold
         self.batch_size = batch_size
@@ -36,7 +38,7 @@ class BaseWatermarkGenerator(ABC):
             self.llm.config.pad_token_id = self.llm.config.eos_token_id
         self.vocab_size = self._infer_vocab_size(self.llm, self.tokenizer)
         self.generator = self._initialize_wm_component(
-            "generator", "no_watermark", **kwargs
+            "generator", "unwatermarked", **kwargs
         )
         self.wm_generator = self._initialize_wm_component(
             "generator", watermark_name, **kwargs
@@ -45,6 +47,7 @@ class BaseWatermarkGenerator(ABC):
             "detector", watermark_name, **kwargs
         )
         self.format_prompt_as_instructions = format_prompt_as_instructions
+        self.num_generations_per_prompt = num_generations_per_prompt
         self.kwargs = kwargs
 
     def _infer_vocab_size(self, model, tokenizer):
@@ -85,20 +88,22 @@ class BaseWatermarkGenerator(ABC):
             ]
             if k in kwargs
         }
-        if component_name == "no_watermark":
+        if component_name == "unwatermarked":
             wm_kwargs.pop("delta", 2.0)
             wm_kwargs.pop("gamma", 0.5)
 
         component_classes = {
             "generator": {
-                "no_watermark": "WmGenerator",
+                "unwatermarked": "WmGenerator",
                 "openai": "OpenaiGenerator",
                 "maryland": "MarylandGenerator",
+                "vllm-unwatermarked": "VLLMGenerator",
             },
             "detector": {
-                "no_watermark": "WmDetector",
+                "unwatermarked": "WmDetector",
                 "openai": "OpenaiDetectorZ",
                 "maryland": "MarylandDetectorZ",
+                "vllm-unwatermarked": "WmDetector",
             },
         }
 
@@ -268,5 +273,25 @@ class WatermarkTextGenerator(BaseWatermarkGenerator):
     Generate watermarked text for a given set of prompts.
     """
 
+    def get_text_key(self):
+        if (
+            self.watermark_name == "vllm-unwatermarked"
+            or self.watermark_name == "unwatermarked"
+        ):
+            return "unwatermarked_text"
+        elif self.watermark_name == "openai" or self.watermark_name == "maryland":
+            return "watermarked_text"
+        else:
+            raise ValueError(f"Invalid watermark name: {self.watermark_name}")
+
     def prepare_output_rows(self, prompts: list[str], **gen_kwargs) -> list[dict]:
-        return []
+        text_key = self.get_text_key()
+
+        results = []
+        for _ in range(self.num_generations_per_prompt):
+            completions = self.wm_generator.generate(prompts, **gen_kwargs)
+            for prompt_idx, completion in enumerate(completions):
+                if len(results) <= prompt_idx:
+                    results.append({text_key: []})
+                results[prompt_idx][text_key].append(completion)
+        return results

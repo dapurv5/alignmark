@@ -302,3 +302,30 @@ class MarylandGenerator(WmGenerator):
             bias = bias.roll(-self.payload)
             logits[ii] += bias  # add bias to greenlist words
         return logits
+
+
+class VLLMGenerator(WmGenerator):
+    """Generate text using VLLM."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from vllm import LLM as VLLM
+
+        self.vllm_model = VLLM(model=self.model, tokenizer=self.tokenizer)
+
+    def generate(
+        self,
+        prompts: List[str],
+        max_gen_len: int,
+        temperature: float = 0.8,
+        top_p: float = 0.95,
+    ) -> List[str]:
+        from vllm import SamplingParams
+
+        sampling_params = SamplingParams(
+            max_tokens=max_gen_len,
+            temperature=temperature,
+            top_p=top_p,
+        )
+        completions = self.vllm_model.generate(prompts, sampling_params)
+        return [completion.text for completion in completions]
