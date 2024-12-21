@@ -1,5 +1,6 @@
 import json
 import random
+from abc import ABC, abstractmethod
 from typing import Any
 
 import numpy as np
@@ -8,7 +9,7 @@ from tqdm import tqdm
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 
-class WatermarkTextPairsGenerator:
+class BaseWatermarkGenerator(ABC):
     def __init__(
         self,
         model_name: str,
@@ -169,58 +170,13 @@ class WatermarkTextPairsGenerator:
                 else:
                     prompts = [example[self.text_field] for example in batch]
 
-                watermarked_texts = self.wm_generator.generate(prompts, **gen_kwargs)
-                unwatermarked_texts = self.generator.generate(prompts, **gen_kwargs)
-                # Encode-Decode text to remove special tokens
-                watermarked_texts = [
-                    self.tokenizer.decode(
-                        self.tokenizer.encode(text), skip_special_tokens=True
-                    )
-                    for text in watermarked_texts
-                ]
-                unwatermarked_texts = [
-                    self.tokenizer.decode(
-                        self.tokenizer.encode(text), skip_special_tokens=True
-                    )
-                    for text in unwatermarked_texts
-                ]
-
-                watermarked_outs = [self.detect(text) for text in watermarked_texts]
-                unwatermarked_outs = [self.detect(text) for text in unwatermarked_texts]
-
-                for j, example in enumerate(batch):
-                    result = {
-                        "watermarked_text.is_watermarked": bool(
-                            watermarked_outs[j]["is_watermarked"]
-                        ),
-                        "unwatermarked_text.is_watermarked": bool(
-                            unwatermarked_outs[j]["is_watermarked"]
-                        ),
-                        "watermarked_score": float(watermarked_outs[j]["score"]),
-                        "unwatermarked_score": float(unwatermarked_outs[j]["score"]),
-                        "watermarked_pvalue": float(watermarked_outs[j]["pvalue"]),
-                        "unwatermarked_pvalue": float(unwatermarked_outs[j]["pvalue"]),
-                        "watermarked_text": watermarked_texts[j],
-                        "unwatermarked_text": unwatermarked_texts[j],
-                    } | example
-
+                results = self.prepare_output_rows(prompts, **gen_kwargs)
+                for idx, row in enumerate(results):
+                    row = row | batch[idx]
                     results_fp.write(
-                        json.dumps(result, default=self._json_serializer) + "\n"
+                        json.dumps(row, default=self._json_serializer) + "\n"
                     )
                 results_fp.flush()
-                # Compute batch-level FNR and FPR
-                batch_watermarked_correct = sum(
-                    1 for out in watermarked_outs if out["is_watermarked"]
-                )
-                batch_unwatermarked_correct = sum(
-                    1 for out in unwatermarked_outs if not out["is_watermarked"]
-                )
-                batch_size = len(batch)
-
-                batch_fnr = (batch_size - batch_watermarked_correct) / batch_size
-                batch_fpr = (batch_size - batch_unwatermarked_correct) / batch_size
-
-                print(f"Batch FNR: {batch_fnr:.4f}, Batch FPR: {batch_fpr:.4f}")
 
     def _json_serializer(self, obj):
         """Custom JSON serializer for objects not serializable by default json code"""
@@ -241,3 +197,76 @@ class WatermarkTextPairsGenerator:
             "score": scores[0][0][0],
             "pvalue": pvalue,
         }
+
+    @abstractmethod
+    def prepare_output_rows(self, prompts: list[str], **gen_kwargs) -> list[dict]:
+        raise NotImplementedError
+
+
+class WatermarkTextPairsGenerator(BaseWatermarkGenerator):
+    """
+    Generate watermarked and unwatermarked text pairs for a given set of prompts.
+
+    """
+
+    def prepare_output_rows(self, prompts: list[str], **gen_kwargs) -> list[dict]:
+        # Generate watermarked and unwatermarked texts
+        watermarked_texts = self.wm_generator.generate(prompts, **gen_kwargs)
+        unwatermarked_texts = self.generator.generate(prompts, **gen_kwargs)
+
+        # Clean up special tokens
+        watermarked_texts = [
+            self.tokenizer.decode(self.tokenizer.encode(text), skip_special_tokens=True)
+            for text in watermarked_texts
+        ]
+        unwatermarked_texts = [
+            self.tokenizer.decode(self.tokenizer.encode(text), skip_special_tokens=True)
+            for text in unwatermarked_texts
+        ]
+
+        # Run detection on both sets of texts
+        watermarked_outs = [self.detect(text) for text in watermarked_texts]
+        unwatermarked_outs = [self.detect(text) for text in unwatermarked_texts]
+
+        # Build results list
+        results = []
+        for i in range(len(prompts)):
+            results.append(
+                {
+                    "watermarked_text": watermarked_texts[i],
+                    "unwatermarked_text": unwatermarked_texts[i],
+                    "watermarked_text.is_watermarked": bool(
+                        watermarked_outs[i]["is_watermarked"]
+                    ),
+                    "unwatermarked_text.is_watermarked": bool(
+                        unwatermarked_outs[i]["is_watermarked"]
+                    ),
+                    "watermarked_score": float(watermarked_outs[i]["score"]),
+                    "unwatermarked_score": float(unwatermarked_outs[i]["score"]),
+                    "watermarked_pvalue": float(watermarked_outs[i]["pvalue"]),
+                    "unwatermarked_pvalue": float(unwatermarked_outs[i]["pvalue"]),
+                }
+            )
+
+        # Print batch metrics
+        self._print_batch_metrics(prompts, watermarked_outs, unwatermarked_outs)
+        return results
+
+    def _print_batch_metrics(self, prompts, watermarked_outs, unwatermarked_outs):
+        n = len(prompts)
+        wm_correct = sum(1 for out in watermarked_outs if out["is_watermarked"])
+        unwm_correct = sum(1 for out in unwatermarked_outs if not out["is_watermarked"])
+
+        print(
+            f"Batch FNR: {(n - wm_correct) / n:.4f}, "
+            f"Batch FPR: {(n - unwm_correct) / n:.4f}"
+        )
+
+
+class WatermarkTextGenerator(BaseWatermarkGenerator):
+    """
+    Generate watermarked text for a given set of prompts.
+    """
+
+    def prepare_output_rows(self, prompts: list[str], **gen_kwargs) -> list[dict]:
+        return []
