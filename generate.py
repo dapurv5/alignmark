@@ -50,8 +50,6 @@ class BaseWatermarkGenerator(ABC):
         self.format_prompt_as_instructions = format_prompt_as_instructions
         self.num_generations_per_prompt = num_generations_per_prompt
         self.turn_shuffle_off = turn_shuffle_off
-        self.dataset_start_row = dataset_start_row
-        self.dataset_end_row = dataset_end_row
         self.kwargs = kwargs
 
     def _infer_vocab_size(self, model, tokenizer):
@@ -197,14 +195,16 @@ class BaseWatermarkGenerator(ABC):
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
     def detect(self, text: str):
-        scores = self.wm_detector.get_scores_by_t([text])
-        pvalues = self.wm_detector.get_pvalues(scores)
+        scores_no_aggreg = self.wm_detector.get_scores_by_t([text])
+        pvalues = self.wm_detector.get_pvalues(scores_no_aggreg)
+        scores = self.wm_detector.aggregate_scores(scores_no_aggreg)
         # Assuming we're interested in the first payload (index 0)
         pvalue = pvalues[0][0]
+        score = scores[0][0]
         is_watermarked = pvalue < self.threshold
         return {
             "is_watermarked": is_watermarked,
-            "score": scores[0][0][0],
+            "score": score,
             "pvalue": pvalue,
         }
 

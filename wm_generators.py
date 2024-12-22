@@ -120,7 +120,7 @@ class WmGenerator:
             except ValueError:
                 pass
             decoded.append(self.tokenizer.decode(t))
-
+        torch.cuda.empty_cache()
         return decoded
 
     def sample_next(

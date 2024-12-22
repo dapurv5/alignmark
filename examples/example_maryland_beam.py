@@ -5,7 +5,7 @@ import torch
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 from wm_detectors import MarylandDetectorZ
-from wm_generators import MarylandGenerator
+from wm_generators_beam import MarylandGenerator
 
 model_name = "meta-llama/Llama-3.1-8B-Instruct"
 # model_name = "meta-llama/Meta-Llama-3-8B-Instruct"
@@ -47,24 +47,23 @@ generator = MarylandGenerator(model, tokenizer, ngram=4, gamma=0.5, delta=2.0)
 
 # Sample prompt
 prompt = "Explain the importance of renewable energy sources."
-
 num_return_sequences = 5
 batch_size = 16
 
-start_time = time.time()
 # Generate watermarked text (assuming the generate method exists)
-watermarked_texts = []
-for _ in range(num_return_sequences):
-    watermarked_texts_batch = generator.generate(
-        [prompt] * batch_size,
-        temperature=0.7,
-        top_p=0.95,
-        max_gen_len=200,
-    )
-    watermarked_texts.extend(watermarked_texts_batch)
+start_time = time.time()
+watermarked_texts = generator.generate(
+    [prompt] * batch_size,
+    temperature=0.7,
+    top_p=0.95,
+    max_gen_len=200,
+    num_beams=num_return_sequences,
+    num_return_sequences=num_return_sequences,
+)
 end_time = time.time()
 print(f"Time taken: {end_time - start_time} seconds")
 print("Generated watermarked text:")
+print(watermarked_texts)
 
 vocab_size = infer_vocab_size(model, tokenizer)
 # Create an OpenaiDetector instance
@@ -92,12 +91,12 @@ def detect(detector, text: str, threshold=0.05):
     }
 
 
-for i in range(len(watermarked_texts)):
-    # Detect watermark in the generated text
-    detection_result = detect(detector, watermarked_texts[i])
-    print(f"Watermark detection result for batch {i}:")
-    print(f"Is watermarked: {detection_result['is_watermarked']}")
-    print(f"P-value: {detection_result['pvalue']}")
-    print(f"Score: {detection_result['score']}")
-    print("-" * 100)
+for batch_idx in range(batch_size):
+    for seq_idx in range(num_return_sequences):
+        detection_result = detect(detector, watermarked_texts[batch_idx][seq_idx])
+        print(f"Watermark detection result for batch {batch_idx}, sequence {seq_idx}:")
+        print(f"Is watermarked: {detection_result['is_watermarked']}")
+        print(f"P-value: {detection_result['pvalue']}")
+        print(f"Score: {detection_result['score']}")
+        print("-" * 100)
 print(f"Time taken: {end_time - start_time} seconds")
