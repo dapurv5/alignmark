@@ -6,9 +6,9 @@ from typing import Any, List
 import fire
 import numpy as np
 import torch
-from datasets import load_dataset
 
 from generate import WatermarkTextPairsGenerator
+from utils import get_run_name, prepare_dataset, prune_dataset, shuffle_dataset
 
 
 def seed_everything(seed: int):
@@ -31,7 +31,6 @@ def run_generator(
     format_prompt_as_instructions: bool = False,
     num_wm_generations_per_prompt: int = 1,
     num_unwm_generations_per_prompt: int = 1,
-    turn_shuffle_off: bool = False,
     beam_size: int = 1,
     **kwargs,
 ):
@@ -44,7 +43,6 @@ def run_generator(
         format_prompt_as_instructions=format_prompt_as_instructions,
         num_wm_generations_per_prompt=num_wm_generations_per_prompt,
         num_unwm_generations_per_prompt=num_unwm_generations_per_prompt,
-        turn_shuffle_off=turn_shuffle_off,
         beam_size=beam_size,
         **kwargs,
     )
@@ -64,58 +62,39 @@ def main(
     format_prompt_as_instructions: bool = False,
     num_wm_generations_per_prompt: int = 1,
     num_unwm_generations_per_prompt: int = 1,
-    turn_shuffle_off: bool = False,
+    select_random_subset_from_dataset: bool = False,
     dataset_start_row: int = 0,
     dataset_end_row: int = -1,
     beam_size: int = 1,
     **kwargs,
 ):
     seed_everything(seed)
-    if dataset_name is not None and dataset_name != "":
-        if dataset_subset_name:
-            dataset = load_dataset(
-                dataset_name, dataset_subset_name, trust_remote_code=True
-            )
-        else:
-            dataset = load_dataset(dataset_name, trust_remote_code=True)
-    elif dataset_path is not None:
-        dataset = load_dataset("json", data_files=dataset_path)
-        dataset_split = "train"
-        dataset_name = os.path.splitext(os.path.basename(dataset_path))[0]
-    else:
-        raise ValueError("Either dataset_name or dataset_path must be provided")
-
-    if dataset_split in dataset:
-        dataset = dataset[dataset_split]
-    else:
-        raise ValueError(f"Dataset split {dataset_split} not found")
-
-    if limit_dataset_size > 0 and hasattr(dataset, "select"):
-        dataset = dataset.select(range(limit_dataset_size))
-    if dataset_start_row >= 0 and dataset_end_row >= 0:
-        dataset = dataset.select(range(dataset_start_row, dataset_end_row))
+    dataset, dataset_name = prepare_dataset(
+        dataset_name, dataset_subset_name, dataset_split, dataset_path
+    )
+    # shuffle examples (this should be done before pruning)
+    if select_random_subset_from_dataset:
+        shuffle_dataset(dataset, seed)
+    total_dataset_size = len(dataset)
+    dataset = prune_dataset(
+        dataset, limit_dataset_size, dataset_start_row, dataset_end_row
+    )
     os.makedirs(exp_dir, exist_ok=True)
 
-    def simple_name(name):
-        return name.replace("_", "").split("/")[-1]  # name cannot contain underscores
-
-    # Generate the output file name including temperature
-    run_name = (
-        "out_"
-        f"{simple_name(dataset_name)}_"
-        f"{simple_name(model_name)}_"
-        f"{watermark_name}_"
-        f"{seed}"
+    run_name = get_run_name(
+        model_name,
+        watermark_name,
+        seed,
+        dataset_name,
+        dataset_start_row,
+        dataset_end_row,
+        total_dataset_size,
+        **kwargs,
     )
-    if dataset_start_row >= 0 and dataset_end_row >= 0:
-        run_name = f"part_{dataset_start_row}_{dataset_end_row}_" + run_name
-    if "temperature" in kwargs:
-        run_name += f"_temperature_{kwargs['temperature']}"
-    for param_name in ["delta", "gamma", "ngram"]:
-        if param_name in kwargs:
-            run_name += f"_{param_name}_{kwargs[param_name]}"
     run_name += ".jsonl"
     output_path = os.path.join(exp_dir, run_name)
+    kwargs["seed"] = seed  # This is so the wm generator and detector can use this.
+    # this should be set after get_run_name
 
     # Run the generator
     run_generator(
@@ -126,7 +105,6 @@ def main(
         format_prompt_as_instructions=format_prompt_as_instructions,
         num_wm_generations_per_prompt=num_wm_generations_per_prompt,
         num_unwm_generations_per_prompt=num_unwm_generations_per_prompt,
-        turn_shuffle_off=turn_shuffle_off,
         beam_size=beam_size,
         **kwargs,
     )
