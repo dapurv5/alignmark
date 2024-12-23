@@ -42,7 +42,7 @@ if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
     model.config.pad_token_id = model.config.eos_token_id
 
-# Create an OpenaiGenerator instance (assuming it takes similar parameters)
+# Create an MarylandGenerator instance (assuming it takes similar parameters)
 generator = MarylandGenerator(model, tokenizer, ngram=4, gamma=0.5, delta=2.0)
 
 # Sample prompt

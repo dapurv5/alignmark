@@ -5,7 +5,7 @@ import torch
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 from wm_detectors import MarylandDetectorZ
-from wm_generators_beam import MarylandGenerator
+from wm_generators_beam import MarylandGeneratorBeam, WmGeneratorBeam
 
 model_name = "meta-llama/Llama-3.1-8B-Instruct"
 # model_name = "meta-llama/Meta-Llama-3-8B-Instruct"
@@ -42,8 +42,9 @@ if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
     model.config.pad_token_id = model.config.eos_token_id
 
-# Create an OpenaiGenerator instance (assuming it takes similar parameters)
-generator = MarylandGenerator(model, tokenizer, ngram=4, gamma=0.5, delta=2.0)
+# Create an MarylandGeneratorBeam instance (assuming it takes similar parameters)
+generator = MarylandGeneratorBeam(model, tokenizer, ngram=4, gamma=0.5, delta=0.2)
+generator = WmGeneratorBeam(model, tokenizer)
 
 # Sample prompt
 prompt = "Explain the importance of renewable energy sources."

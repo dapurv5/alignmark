@@ -20,8 +20,10 @@ class BaseWatermarkGenerator(ABC):
         batch_size: int = 16,
         text_field: str = "prompt",
         format_prompt_as_instructions: bool = False,
-        num_generations_per_prompt: int = 1,  # only used for non-pairs generator
+        num_wm_generations_per_prompt: int = 1,
+        num_unwm_generations_per_prompt: int = 1,
         turn_shuffle_off: bool = False,
+        beam_size: int = 1,
         **kwargs,
     ):
         self.model_name = model_name
@@ -38,6 +40,11 @@ class BaseWatermarkGenerator(ABC):
             self.tokenizer.pad_token = self.tokenizer.eos_token
             self.llm.config.pad_token_id = self.llm.config.eos_token_id
         self.vocab_size = self._infer_vocab_size(self.llm, self.tokenizer)
+        self.beamed_generation = (
+            self.num_wm_generations_per_prompt > 1
+            or self.num_unwm_generations_per_prompt > 1
+        )
+        # Initializations should be done after beamed_generation is set
         self.generator = self._initialize_wm_component(
             "generator", "unwatermarked", **kwargs
         )
@@ -48,8 +55,10 @@ class BaseWatermarkGenerator(ABC):
             "detector", watermark_name, **kwargs
         )
         self.format_prompt_as_instructions = format_prompt_as_instructions
-        self.num_generations_per_prompt = num_generations_per_prompt
+        self.num_wm_generations_per_prompt = num_wm_generations_per_prompt
+        self.num_unwm_generations_per_prompt = num_unwm_generations_per_prompt
         self.turn_shuffle_off = turn_shuffle_off
+        self.beam_size = beam_size
         self.kwargs = kwargs
 
     def _infer_vocab_size(self, model, tokenizer):
@@ -94,13 +103,23 @@ class BaseWatermarkGenerator(ABC):
             wm_kwargs.pop("delta", 2.0)
             wm_kwargs.pop("gamma", 0.5)
 
-        component_classes = {
-            "generator": {
+        if self.beamed_generation:
+            generator = {
+                "unwatermarked": "WmGeneratorBeam",
+                "openai": "OpenaiGeneratorBeam",
+                "maryland": "MarylandGeneratorBeam",
+                "vllm-unwatermarked": "VLLMGeneratorBeam",
+            }
+        else:
+            generator = {
                 "unwatermarked": "WmGenerator",
                 "openai": "OpenaiGenerator",
                 "maryland": "MarylandGenerator",
                 "vllm-unwatermarked": "VLLMGenerator",
-            },
+            }
+
+        component_classes = {
+            "generator": generator,
             "detector": {
                 "unwatermarked": "WmDetector",
                 "openai": "OpenaiDetectorZ",
@@ -111,10 +130,14 @@ class BaseWatermarkGenerator(ABC):
 
         if component_name not in component_classes[component_type]:
             raise ValueError(f"Invalid watermark name: {component_name}")
+        module = None
+        if component_type == "generator":
+            module = __import__(
+                "wm_generators_beam" if self.beamed_generation else "wm_generators"
+            )
+        elif component_type == "detector":
+            module = __import__("wm_detectors")
 
-        module = __import__(
-            "wm_generators" if component_type == "generator" else "wm_detectors"
-        )
         ComponentClass = getattr(
             module, component_classes[component_type][component_name]
         )
@@ -219,44 +242,129 @@ class WatermarkTextPairsGenerator(BaseWatermarkGenerator):
 
     """
 
+    def clean_text(self, text: str):
+        return self.tokenizer.decode(
+            self.tokenizer.encode(text), skip_special_tokens=True
+        )
+
     def prepare_output_rows(self, prompts: list[str], **gen_kwargs) -> list[dict]:
         # Generate watermarked and unwatermarked texts
-        watermarked_texts = self.wm_generator.generate(prompts, **gen_kwargs)
-        unwatermarked_texts = self.generator.generate(prompts, **gen_kwargs)
+        if self.beamed_generation:
+            watermarked_texts = self.wm_generator.generate(
+                prompts,
+                **gen_kwargs,
+                beam_size=self.beam_size,
+                num_generations_per_prompt=self.num_wm_generations_per_prompt,
+            )
+            unwatermarked_texts = self.generator.generate(
+                prompts,
+                **gen_kwargs,
+                beam_size=self.beam_size,
+                num_generations_per_prompt=self.num_unwm_generations_per_prompt,
+            )
+        else:
+            watermarked_texts = self.wm_generator.generate(prompts, **gen_kwargs)
+            unwatermarked_texts = self.generator.generate(prompts, **gen_kwargs)
 
         # Clean up special tokens
-        watermarked_texts = [
-            self.tokenizer.decode(self.tokenizer.encode(text), skip_special_tokens=True)
-            for text in watermarked_texts
-        ]
-        unwatermarked_texts = [
-            self.tokenizer.decode(self.tokenizer.encode(text), skip_special_tokens=True)
-            for text in unwatermarked_texts
-        ]
-
-        # Run detection on both sets of texts
-        watermarked_outs = [self.detect(text) for text in watermarked_texts]
-        unwatermarked_outs = [self.detect(text) for text in unwatermarked_texts]
-
-        # Build results list
+        watermarked_outs = []
+        unwatermarked_outs = []
         results = []
-        for i in range(len(prompts)):
-            results.append(
-                {
-                    "watermarked_text": watermarked_texts[i],
-                    "unwatermarked_text": unwatermarked_texts[i],
-                    "watermarked_text.is_watermarked": bool(
-                        watermarked_outs[i]["is_watermarked"]
-                    ),
-                    "unwatermarked_text.is_watermarked": bool(
-                        unwatermarked_outs[i]["is_watermarked"]
-                    ),
-                    "watermarked_score": float(watermarked_outs[i]["score"]),
-                    "unwatermarked_score": float(unwatermarked_outs[i]["score"]),
-                    "watermarked_pvalue": float(watermarked_outs[i]["pvalue"]),
-                    "unwatermarked_pvalue": float(unwatermarked_outs[i]["pvalue"]),
+        if self.beamed_generation:
+            for prompt_idx, completions in enumerate(watermarked_texts):
+                watermarked_texts[prompt_idx] = [
+                    self.clean_text(text) for text in completions
+                ]
+                watermarked_outs.append([self.detect(text) for text in completions])
+            for prompt_idx, completions in enumerate(unwatermarked_texts):
+                unwatermarked_texts[prompt_idx] = [
+                    self.clean_text(text) for text in completions
+                ]
+                unwatermarked_outs.append([self.detect(text) for text in completions])
+
+            # Build results list
+            for i in range(len(prompts)):
+                row = {
+                    "watermarked_texts": watermarked_texts[i],
+                    "unwatermarked_texts": unwatermarked_texts[i],
+                    "watermarked_texts.is_watermarked": [
+                        bool(out["is_watermarked"]) for out in watermarked_outs[i]
+                    ],
+                    "unwatermarked_texts.is_watermarked": [
+                        bool(out["is_watermarked"]) for out in unwatermarked_outs[i]
+                    ],
+                    "watermarked_texts.score": [
+                        float(out["score"]) for out in watermarked_outs[i]
+                    ],
+                    "unwatermarked_texts.score": [
+                        float(out["score"]) for out in unwatermarked_outs[i]
+                    ],
+                    "watermarked_texts.pvalue": [
+                        float(out["pvalue"]) for out in watermarked_outs[i]
+                    ],
+                    "unwatermarked_texts.pvalue": [
+                        float(out["pvalue"]) for out in unwatermarked_outs[i]
+                    ],
                 }
-            )
+                # CHOOSE A RANDOM WATERMARKED AND UNWATERMARKED TEXT
+                # Pick a random number between 0 and self.num_wm_generations_per_prompt
+                # and self.num_unwm_generations_per_prompt
+                rand_idx_wm = random.randint(0, self.num_wm_generations_per_prompt - 1)
+                rand_idx_unwm = random.randint(
+                    0, self.num_unwm_generations_per_prompt - 1
+                )
+                row["watermarked_text"] = row["watermarked_texts"][rand_idx_wm]
+                row["unwatermarked_text"] = row["unwatermarked_texts"][rand_idx_unwm]
+                row["watermarked_text.is_watermarked"] = row[
+                    "watermarked_texts.is_watermarked"
+                ][rand_idx_wm]
+                row["unwatermarked_text.is_watermarked"] = row[
+                    "unwatermarked_texts.is_watermarked"
+                ][rand_idx_unwm]
+                row["watermarked_text.score"] = row["watermarked_texts.score"][
+                    rand_idx_wm
+                ]
+                row["unwatermarked_text.score"] = row["unwatermarked_texts.score"][
+                    rand_idx_unwm
+                ]
+                row["watermarked_text.pvalue"] = row["watermarked_texts.pvalue"][
+                    rand_idx_wm
+                ]
+                row["unwatermarked_text.pvalue"] = row["unwatermarked_texts.pvalue"][
+                    rand_idx_unwm
+                ]
+                results.append(row)
+                # In this case, the exact watermarked and unwatermarked texts are
+                # picked by the scorer run in the next stage.
+                # Depending on the scorer it will pick the best watermarked and unwatermarked
+                # texts for each prompt.
+        else:
+            watermarked_texts = [self.clean_text(text) for text in watermarked_texts]
+            unwatermarked_texts = [
+                self.clean_text(text) for text in unwatermarked_texts
+            ]
+            # Run detection on both sets of texts
+            watermarked_outs = [self.detect(text) for text in watermarked_texts]
+            unwatermarked_outs = [self.detect(text) for text in unwatermarked_texts]
+
+            # Build results list
+            for i in range(len(prompts)):
+                results.append(
+                    {
+                        "watermarked_text": watermarked_texts[i],
+                        "unwatermarked_text": unwatermarked_texts[i],
+                        "watermarked_text.is_watermarked": bool(
+                            watermarked_outs[i]["is_watermarked"]
+                        ),
+                        "unwatermarked_text.is_watermarked": bool(
+                            unwatermarked_outs[i]["is_watermarked"]
+                        ),
+                        "watermarked_score": float(watermarked_outs[i]["score"]),
+                        "unwatermarked_score": float(unwatermarked_outs[i]["score"]),
+                        "watermarked_pvalue": float(watermarked_outs[i]["pvalue"]),
+                        "unwatermarked_pvalue": float(unwatermarked_outs[i]["pvalue"]),
+                    }
+                )
 
         # Print batch metrics
         self._print_batch_metrics(prompts, watermarked_outs, unwatermarked_outs)

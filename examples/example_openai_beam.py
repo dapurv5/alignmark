@@ -3,7 +3,7 @@ import torch
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 from wm_detectors import OpenaiDetector
-from wm_generators_beam import OpenaiGenerator
+from wm_generators_beam import OpenaiGeneratorBeam, WmGeneratorBeam
 
 model_name = "meta-llama/Llama-3.1-8B-Instruct"
 # model_name = "meta-llama/Meta-Llama-3-8B-Instruct"
@@ -30,8 +30,9 @@ if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
     model.config.pad_token_id = model.config.eos_token_id
 
-# Create an OpenaiGenerator instance (assuming it takes similar parameters)
-generator = OpenaiGenerator(model, tokenizer, ngram=4)
+# Create an OpenaiGeneratorBeam instance (assuming it takes similar parameters)
+generator = OpenaiGeneratorBeam(model, tokenizer, ngram=4)
+generator = WmGeneratorBeam(model, tokenizer)
 
 # Sample prompt
 prompt = "Explain the importance of renewable energy sources."

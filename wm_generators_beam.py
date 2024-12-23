@@ -3,7 +3,7 @@ from typing import List, Tuple
 import torch
 
 
-class WmGenerator:
+class WmGeneratorBeam:
     def __init__(
         self,
         model,
@@ -103,16 +103,11 @@ class WmGenerator:
             probs_sort[mask] = 0.0
             probs_sort.div_(probs_sort.sum(dim=-1, keepdim=True))
 
-            # For each sequence, get the top num_beams tokens and their log probabilities
-            next_scores, next_tokens = torch.topk(
-                torch.log(probs_sort + 1e-10),  # Add small epsilon to avoid log(0)
-                num_beams,
-                dim=-1,
-                largest=True,
-                sorted=True,
-            )
-            # Map back to original vocabulary indices
-            next_tokens = torch.gather(probs_idx, -1, next_tokens)
+            # Sample num_beams indices from multinomial distribution of next_scores
+            # Note that when temperature > 0, the beam search is not monotonically decreasing
+            top_indices = torch.multinomial(probs_sort, num_samples=num_beams)
+            next_scores = torch.gather(probs_sort, -1, top_indices)
+            next_tokens = torch.gather(probs_idx, -1, top_indices)
         else:
             # For greedy search, just take the top num_beams tokens
             next_scores, next_tokens = torch.topk(
@@ -276,7 +271,7 @@ class WmGenerator:
         return decoded_sequences
 
 
-class OpenaiGenerator(WmGenerator):
+class OpenaiGeneratorBeam(WmGeneratorBeam):
     """Generate text using LLaMA and Aaronson's watermarking method."""
 
     def __init__(self, *args, **kwargs):
@@ -372,7 +367,7 @@ class OpenaiGenerator(WmGenerator):
         return next_tokens, next_scores
 
 
-class MarylandGenerator(WmGenerator):
+class MarylandGeneratorBeam(WmGeneratorBeam):
     """Generate text using LLaMA and Maryland's watermarking method."""
 
     def __init__(self, *args, gamma: float = 0.5, delta: float = 1.0, **kwargs):

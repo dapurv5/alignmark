@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from datasets import load_dataset
 
-from generate import WatermarkTextGenerator, WatermarkTextPairsGenerator
+from generate import WatermarkTextPairsGenerator
 
 
 def seed_everything(seed: int):
@@ -29,33 +29,25 @@ def run_generator(
     threshold: float = 0.05,
     batch_size: int = 16,
     format_prompt_as_instructions: bool = False,
-    pairs_generator: bool = False,
-    num_generations_per_prompt: int = 1,
+    num_wm_generations_per_prompt: int = 1,
+    num_unwm_generations_per_prompt: int = 1,
     turn_shuffle_off: bool = False,
+    beam_size: int = 1,
     **kwargs,
 ):
-    if pairs_generator:
-        generator = WatermarkTextPairsGenerator(
-            model_name,
-            watermark_name,
-            output_path,
-            threshold=threshold,
-            batch_size=batch_size,
-            format_prompt_as_instructions=format_prompt_as_instructions,
-            **kwargs,
-        )
-    else:
-        generator = WatermarkTextGenerator(
-            model_name,
-            watermark_name,
-            output_path,
-            threshold=threshold,
-            batch_size=batch_size,
-            format_prompt_as_instructions=format_prompt_as_instructions,
-            num_generations_per_prompt=num_generations_per_prompt,
-            turn_shuffle_off=turn_shuffle_off,
-            **kwargs,
-        )
+    generator = WatermarkTextPairsGenerator(
+        model_name,
+        watermark_name,
+        output_path,
+        threshold=threshold,
+        batch_size=batch_size,
+        format_prompt_as_instructions=format_prompt_as_instructions,
+        num_wm_generations_per_prompt=num_wm_generations_per_prompt,
+        num_unwm_generations_per_prompt=num_unwm_generations_per_prompt,
+        turn_shuffle_off=turn_shuffle_off,
+        beam_size=beam_size,
+        **kwargs,
+    )
     generator.generate(examples)
 
 
@@ -70,11 +62,12 @@ def main(
     seed: int = 42,
     dataset_path: str = None,
     format_prompt_as_instructions: bool = False,
-    pairs_generator: bool = False,
-    num_generations_per_prompt: int = 1,
+    num_wm_generations_per_prompt: int = 1,
+    num_unwm_generations_per_prompt: int = 1,
     turn_shuffle_off: bool = False,
     dataset_start_row: int = 0,
     dataset_end_row: int = -1,
+    beam_size: int = 1,
     **kwargs,
 ):
     seed_everything(seed)
@@ -131,9 +124,10 @@ def main(
         examples=dataset,
         output_path=output_path,
         format_prompt_as_instructions=format_prompt_as_instructions,
-        pairs_generator=pairs_generator,
-        num_generations_per_prompt=num_generations_per_prompt,
+        num_wm_generations_per_prompt=num_wm_generations_per_prompt,
+        num_unwm_generations_per_prompt=num_unwm_generations_per_prompt,
         turn_shuffle_off=turn_shuffle_off,
+        beam_size=beam_size,
         **kwargs,
     )
 
