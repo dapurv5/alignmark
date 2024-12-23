@@ -14,7 +14,7 @@ CLUSTER="AWS"  # "AWS" or "WULVER"
 MODEL_NAME="meta-llama/Llama-3.1-8B-Instruct"
 EXP_NAME="exp_005_sweep_temperature_hh-rlhf_1k"
 # Choose number of GPUs to be exactly divisible by DATASET_SIZE
-NUM_GPUS_AVAILABLE=1  # Don't set > 2 for now, because it gets too slow for unknown reasons
+NUM_GPUS_AVAILABLE=2  # Don't set > 2 for now, because it gets too slow for unknown reasons
 DATASET_SIZE=256
 BATCH_SIZE=32  # Use batch size 32 for 40GB GPU
 SEED=42
@@ -78,7 +78,7 @@ for temperature in $(seq 0.2 0.2 1.0); do
                 --dataset_start_row $START_ROW \
                 --dataset_end_row $END_ROW
                 #--select_random_subset_from_dataset  # (keep this off otherwise the dataset will change)
-        )
+        ) &
     done
 
     # Wait for all background processes to complete before moving to next temperature
@@ -91,5 +91,5 @@ for temperature in $(seq 0.2 0.2 1.0); do
         --dataset_size $DATASET_SIZE
 
     # Delete the parts directory
-    # rm -rf "$EXP_DIR_PREFIX/$EXP_NAME/parts"
+    rm -rf "$EXP_DIR_PREFIX/$EXP_NAME/parts"
 done
