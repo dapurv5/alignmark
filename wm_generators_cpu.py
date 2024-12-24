@@ -33,15 +33,9 @@ class WmGenerator:
         self.rng = torch.Generator()
         self.rng.manual_seed(self.seed)
         self.payload = payload
-        self.device = self.model.device
-        # Move RNG to GPU if CUDA is available
-        if torch.cuda.is_available():
-            self.rng = torch.Generator(device=self.device)
-        else:
-            self.rng = torch.Generator()
-        self.rng.manual_seed(self.seed)
 
         # Move hashtable to GPU if available
+        self.device = self.model.device
         self.hashtable = torch.randperm(1000003).to(self.device)
 
     def hashint(self, integer_tensor: torch.LongTensor) -> torch.LongTensor:
@@ -189,8 +183,9 @@ class OpenaiGenerator(WmGenerator):
                 self.rng.manual_seed(seed)
                 # generate rs randomly between [0,1]
                 vocab_size = logits.shape[-1]
-                rs = torch.rand(vocab_size, generator=self.rng, device=self.device)
+                rs = torch.rand(vocab_size, generator=self.rng)  # n
                 rs = rs.roll(-self.payload)
+                rs = torch.Tensor(rs).to(probs_sort.device)
                 rs = rs[probs_idx[ii]]
                 # compute r^(1/p)
                 probs_sort[ii] = torch.pow(rs, 1 / probs_sort[ii])
@@ -300,13 +295,9 @@ class MarylandGenerator(WmGenerator):
         for ii in range(ngram_tokens.shape[0]):  # batch of texts
             seed = self.get_seed_rng(ngram_tokens[ii])
             self.rng.manual_seed(seed)
-            # Generate permutation directly on GPU
-            vocab_permutation = torch.randperm(
-                vocab_size, generator=self.rng, device=self.device
-            )
-            greenlist = vocab_permutation[: int(self.gamma * vocab_size)]
-            # Create bias tensor directly on GPU
-            bias = torch.zeros(vocab_size, device=self.device)
+            vocab_permutation = torch.randperm(vocab_size, generator=self.rng)
+            greenlist = vocab_permutation[: int(self.gamma * vocab_size)]  # gamma * n
+            bias = torch.zeros(vocab_size).to(logits.device)  # n
             bias[greenlist] = self.delta
             bias = bias.roll(-self.payload)
             logits[ii] += bias  # add bias to greenlist words

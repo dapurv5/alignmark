@@ -31,14 +31,6 @@ class WmDetector:
         self.seeding = seeding
         self.rng = torch.Generator()
         self.rng.manual_seed(self.seed)
-        # Move RNG to GPU if CUDA is available
-        if torch.cuda.is_available():
-            device = torch.device("cuda")
-            self.device = device
-            self.rng = torch.Generator(device=device)
-        else:
-            self.rng = torch.Generator()
-        self.rng.manual_seed(self.seed)
 
     def hashint(self, integer_tensor: torch.LongTensor) -> torch.LongTensor:
         """Adapted from https://github.com/jwkirchenbauer/lm-watermarking"""
@@ -241,9 +233,7 @@ class MarylandDetectorZ(WmDetector):
         seed = self.get_seed_rng(ngram_tokens)
         self.rng.manual_seed(seed)
         scores = torch.zeros(self.vocab_size)
-        vocab_permutation = torch.randperm(
-            self.vocab_size, generator=self.rng, device=self.device
-        )
+        vocab_permutation = torch.randperm(self.vocab_size, generator=self.rng)
         greenlist = vocab_permutation[: int(self.gamma * self.vocab_size)]  # gamma * n
         scores[greenlist] = 1
         return scores.roll(-token_id)

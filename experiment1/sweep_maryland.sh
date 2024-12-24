@@ -79,8 +79,8 @@ for temperature in $(seq 0.2 0.2 1.0); do
                 --dataset_end_row $END_ROW
                 #--select_random_subset_from_dataset  # (keep this off otherwise the dataset will change)
         ) &
+        sleep 10
     done
-
     # Wait for all background processes to complete before moving to next temperature
     wait
 
