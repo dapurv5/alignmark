@@ -117,15 +117,18 @@ class WmGenerator:
                 prev_pos = cur_pos
 
         decoded = []
-        for i, t in enumerate(tokens.tolist()):
-            # cut to max gen len
-            t = t[: len(prompt_tokens[i]) + max_gen_len]
-            # cut to eos tok if any
-            try:
-                t = t[: t.index(self.eos_id)]
-            except ValueError:
-                pass
-            decoded.append(self.tokenizer.decode(t))
+        for i, t in enumerate(tokens):
+            # Keep tensor on GPU while finding length and EOS
+            curr_len = len(prompt_tokens[i]) + max_gen_len
+            t = t[:curr_len]
+
+            # Find EOS token while still on GPU
+            eos_indices = (t == self.eos_id).nonzero()
+            if len(eos_indices) > 0:
+                t = t[: eos_indices[0]]
+
+            # Only move to CPU when absolutely necessary for tokenizer
+            decoded.append(self.tokenizer.decode(t.cpu().tolist()))
         torch.cuda.empty_cache()
         return decoded
 

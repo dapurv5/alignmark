@@ -14,7 +14,7 @@ CLUSTER="AWS"  # "AWS" or "WULVER"
 MODEL_NAME="meta-llama/Llama-3.1-8B-Instruct"
 EXP_NAME="exp_005_sweep_temperature_hh-rlhf_1k"
 # Choose number of GPUs to be exactly divisible by DATASET_SIZE
-NUM_GPUS_AVAILABLE=2  # Don't set > 2 for now, because it gets too slow for unknown reasons
+NUM_GPUS_AVAILABLE=4  # Don't set > 4 for now, because it hangs after a while for unknown reasons
 DATASET_SIZE=256
 BATCH_SIZE=32  # Use batch size 32 for 40GB GPU
 SEED=42
