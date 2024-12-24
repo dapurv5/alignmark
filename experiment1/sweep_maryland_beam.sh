@@ -65,8 +65,9 @@ for temperature in $(seq 0.2 0.2 1.0); do
                 --dataset_name "Dahoas/full-hh-rlhf" \
                 --dataset_split "test" \
                 --text_field "prompt" \
-                --watermark_name "openai" \
-                --ngram 4.0 \
+                --watermark_name "maryland" \
+                --delta 2.0 \
+                --gamma 0.5 \
                 --threshold 0.05 \
                 --seed $SEED \
                 --temperature $temperature \
@@ -77,6 +78,9 @@ for temperature in $(seq 0.2 0.2 1.0); do
                 --dataset_start_row $START_ROW \
                 --dataset_end_row $END_ROW
                 #--select_random_subset_from_dataset  # (keep this off otherwise the dataset will change)
+                --num_wm_generations_per_prompt 4
+                --num_unwm_generations_per_prompt 2
+                --beam_size 5
         ) &
         sleep 10
     done

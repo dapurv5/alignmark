@@ -32,6 +32,7 @@ class WmDetector:
         self.rng = torch.Generator()
         self.rng.manual_seed(self.seed)
         # Move RNG to GPU if CUDA is available
+        # This assumes that the code is being run with CUDA_VISIBLE_DEVICES set to a single GPU
         if torch.cuda.is_available():
             device = torch.device("cuda")
             self.device = device

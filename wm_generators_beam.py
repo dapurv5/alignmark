@@ -32,6 +32,12 @@ class WmGeneratorBeam:
 
         # Move hashtable to GPU if available
         self.device = self.model.device
+        # Move RNG to GPU if CUDA is available
+        if torch.cuda.is_available():
+            self.rng = torch.Generator(device=self.device)
+        else:
+            self.rng = torch.Generator()
+        self.rng.manual_seed(self.seed)
         self.hashtable = torch.randperm(1000003).to(self.device)
 
     def hashint(self, integer_tensor: torch.LongTensor) -> torch.LongTensor:
@@ -54,32 +60,6 @@ class WmGeneratorBeam:
             seed = self.hashint(self.salt_key * input_ids)
             seed = torch.min(seed).item()
         return seed
-
-    def sample_next(
-        self,
-        logits: torch.FloatTensor,  # (bsz, vocab_size): logits for last token
-        ngram_tokens: torch.LongTensor,  # (bsz, ngram): tokens to consider when seeding
-        temperature: float = 0.8,  # temperature for sampling
-        top_p: float = 0.95,  # top p for sampling
-    ) -> torch.LongTensor:
-        """Vanilla sampling with temperature and top p."""
-        if temperature > 0:
-            probs = torch.softmax(logits / temperature, dim=-1)
-            probs_sort, probs_idx = torch.sort(probs, dim=-1, descending=True)
-            probs_sum = torch.cumsum(probs_sort, dim=-1)
-            mask = probs_sum - probs_sort > top_p
-            probs_sort[mask] = 0.0
-            probs_sort.div_(probs_sort.sum(dim=-1, keepdim=True))
-            next_token = torch.multinomial(
-                probs_sort, num_samples=1
-            )  # one hot of next token, ordered by original probs
-            next_token = torch.gather(
-                probs_idx, -1, next_token
-            )  # one hot of next token, ordered by vocab
-        else:
-            next_token = torch.argmax(logits, dim=-1)
-        next_token = next_token.reshape(-1)
-        return next_token
 
     def sample_next_beam(
         self,
@@ -277,47 +257,6 @@ class OpenaiGeneratorBeam(WmGeneratorBeam):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def sample_next(
-        self,
-        logits: torch.FloatTensor,  # (bsz, vocab_size): logits for last token
-        ngram_tokens: torch.LongTensor,  # (bsz, ngram): tokens to consider when seeding
-        temperature: float = 0.8,  # temperature for sampling
-        top_p: float = 0.95,  # top p for sampling
-    ) -> torch.LongTensor:
-        """
-        From ngram tokens, select the next token based on the following:
-        - hash the ngram tokens and get a seed
-        - use the seed to generate V random number r between [0,1]
-        - select argmax ( r^(1/p) )
-        payload (the message) is encoded by shifting the secret vector r by `payload`.
-        """
-        if temperature > 0:
-            probs = torch.softmax(logits / temperature, dim=-1)
-            probs_sort, probs_idx = torch.sort(probs, dim=-1, descending=True)
-            probs_sum = torch.cumsum(probs_sort, dim=-1)
-            mask = probs_sum - probs_sort > top_p
-            probs_sort[mask] = 0.0
-            probs_sort.div_(probs_sort.sum(dim=-1, keepdim=True))
-            for ii in range(ngram_tokens.shape[0]):  # batch of texts
-                # seed with hash of ngram tokens
-                seed = self.get_seed_rng(ngram_tokens[ii])
-                self.rng.manual_seed(seed)
-                # generate rs randomly between [0,1]
-                vocab_size = logits.shape[-1]
-                rs = torch.rand(vocab_size, generator=self.rng)  # n
-                rs = rs.roll(-self.payload)
-                rs = torch.Tensor(rs).to(probs_sort.device)
-                rs = rs[probs_idx[ii]]
-                # compute r^(1/p)
-                probs_sort[ii] = torch.pow(rs, 1 / probs_sort[ii])
-            # select argmax ( r^(1/p) )
-            next_token = torch.argmax(probs_sort, dim=-1, keepdim=True)
-            next_token = torch.gather(probs_idx, -1, next_token)
-        else:
-            next_token = torch.argmax(logits, dim=-1)
-        next_token = next_token.reshape(-1)
-        return next_token
-
     def sample_next_beam(
         self,
         logits: torch.FloatTensor,
@@ -345,9 +284,10 @@ class OpenaiGeneratorBeam(WmGeneratorBeam):
 
                 # Generate random values and apply payload shift
                 vocab_size = logits.shape[-1]
-                rs = torch.rand(vocab_size, generator=self.rng)
+                rs = torch.rand(
+                    vocab_size, generator=self.rng, device=probs_sort.device
+                )
                 rs = rs.roll(-self.payload)
-                rs = torch.Tensor(rs).to(probs_sort.device)
                 rs = rs[probs_idx[ii]]
 
                 # Modified watermarking score for beam search
@@ -382,42 +322,15 @@ class MarylandGeneratorBeam(WmGeneratorBeam):
         for ii in range(ngram_tokens.shape[0]):  # batch of texts
             seed = self.get_seed_rng(ngram_tokens[ii])
             self.rng.manual_seed(seed)
-            vocab_permutation = torch.randperm(vocab_size, generator=self.rng)
+            vocab_permutation = torch.randperm(
+                vocab_size, generator=self.rng, device=self.device
+            )
             greenlist = vocab_permutation[: int(self.gamma * vocab_size)]  # gamma * n
-            bias = torch.zeros(vocab_size).to(logits.device)  # n
+            bias = torch.zeros(vocab_size, device=self.device)  # n
             bias[greenlist] = self.delta
             bias = bias.roll(-self.payload)
             logits[ii] += bias  # add bias to greenlist words
         return logits
-
-    def sample_next(
-        self,
-        logits: torch.FloatTensor,  # (bsz, vocab_size): logits for last token
-        ngram_tokens: torch.LongTensor,  # (bsz, ngram): tokens to consider when seeding
-        temperature: float = 0.8,  # temperature for sampling
-        top_p: float = 0.95,  # top p for sampling
-    ) -> torch.LongTensor:
-        """
-        From ngram tokens, select the next token based on the following:
-        - hash the ngram tokens and get a seed
-        - use the seed to partition the vocabulary into greenlist (gamma*V words) and blacklist
-        - add delta to greenlist words' logits
-        payload (the message) is encoded by shifting the secret vector r by `payload`.
-        """
-        logits = self.logits_processor(logits, ngram_tokens)
-        if temperature > 0:
-            probs = torch.softmax(logits / temperature, dim=-1)
-            probs_sort, probs_idx = torch.sort(probs, dim=-1, descending=True)
-            probs_sum = torch.cumsum(probs_sort, dim=-1)
-            mask = probs_sum - probs_sort > top_p
-            probs_sort[mask] = 0.0
-            probs_sort.div_(probs_sort.sum(dim=-1, keepdim=True))
-            next_token = torch.multinomial(probs_sort, num_samples=1)
-            next_token = torch.gather(probs_idx, -1, next_token)
-        else:
-            next_token = torch.argmax(logits, dim=-1)
-        next_token = next_token.reshape(-1)
-        return next_token
 
     def sample_next_beam(
         self,
