@@ -14,7 +14,7 @@ CLUSTER="AWS"  # "AWS" or "WULVER"
 MODEL_NAME="meta-llama/Llama-3.1-8B-Instruct"
 EXP_NAME="exp_005_sweep_temperature_hh-rlhf_1k"
 # Choose number of GPUs to be exactly divisible by DATASET_SIZE
-NUM_GPUS_AVAILABLE=4  # Don't set > 4 for now, because it hangs after a while for unknown reasons
+NUM_GPUS_AVAILABLE=8  # For OpenAI watermarking, we can use more GPUs (strange !!!)
 DATASET_SIZE=256
 BATCH_SIZE=32  # Use batch size 32 for 40GB GPU
 SEED=42
@@ -30,9 +30,9 @@ fi
 
 
 if [ "$CLUSTER" == "WULVER" ]; then
-    EXP_DIR_PREFIX="/project/phan/av787/projs/watermarking-v1/outputs/"
+    EXP_DIR_PREFIX="/project/phan/av787/projs/watermarking-v1/outputs"
 else
-    EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1/"
+    EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1"
 fi
 
 for temperature in $(seq 0.2 0.2 1.0); do
@@ -66,7 +66,7 @@ for temperature in $(seq 0.2 0.2 1.0); do
                 --dataset_split "test" \
                 --text_field "prompt" \
                 --watermark_name "openai" \
-                --ngram 4.0 \
+                --ngram 1 \
                 --threshold 0.05 \
                 --seed $SEED \
                 --temperature $temperature \

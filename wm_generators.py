@@ -148,7 +148,7 @@ class WmGenerator:
             probs_sort[mask] = 0.0
             probs_sort.div_(probs_sort.sum(dim=-1, keepdim=True))
             next_token = torch.multinomial(
-                probs_sort, num_samples=1
+                probs_sort, num_samples=1, generator=self.rng
             )  # one hot of next token, ordered by original probs
             next_token = torch.gather(
                 probs_idx, -1, next_token
@@ -289,7 +289,7 @@ class MarylandGenerator(WmGenerator):
             probs_sort[mask] = 0.0
             probs_sort.div_(probs_sort.sum(dim=-1, keepdim=True))
             next_token = torch.multinomial(
-                probs_sort, num_samples=1
+                probs_sort, num_samples=1, generator=self.rng
             )  # one hot of next token, ordered by original probs
             next_token = torch.gather(
                 probs_idx, -1, next_token

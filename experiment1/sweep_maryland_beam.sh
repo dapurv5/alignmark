@@ -12,7 +12,7 @@ set -o errexit -o xtrace -o nounset
 ###################
 CLUSTER="AWS"  # "AWS" or "WULVER"
 MODEL_NAME="meta-llama/Llama-3.1-8B-Instruct"
-EXP_NAME="exp_005_sweep_temperature_hh-rlhf_1k"
+EXP_NAME="exp_005_sweep_temperature_hh-rlhf_1k_beam"
 # Choose number of GPUs to be exactly divisible by DATASET_SIZE
 NUM_GPUS_AVAILABLE=4  # Don't set > 4 for now, because it hangs after a while for unknown reasons
 DATASET_SIZE=256
@@ -30,9 +30,9 @@ fi
 
 
 if [ "$CLUSTER" == "WULVER" ]; then
-    EXP_DIR_PREFIX="/project/phan/av787/projs/watermarking-v1/outputs/"
+    EXP_DIR_PREFIX="/project/phan/av787/projs/watermarking-v1/outputs"
 else
-    EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1/"
+    EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1"
 fi
 
 for temperature in $(seq 0.2 0.2 1.0); do
@@ -76,11 +76,11 @@ for temperature in $(seq 0.2 0.2 1.0); do
                 --batch_size $BATCH_SIZE \
                 --limit_dataset_size $DATASET_SIZE \
                 --dataset_start_row $START_ROW \
-                --dataset_end_row $END_ROW
+                --dataset_end_row $END_ROW \
+                --num_wm_generations_per_prompt 4 \
+                --num_unwm_generations_per_prompt 2 \
+                --beam_size 5 \
                 #--select_random_subset_from_dataset  # (keep this off otherwise the dataset will change)
-                --num_wm_generations_per_prompt 4
-                --num_unwm_generations_per_prompt 2
-                --beam_size 5
         ) &
         sleep 10
     done

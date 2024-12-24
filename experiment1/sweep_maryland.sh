@@ -30,9 +30,9 @@ fi
 
 
 if [ "$CLUSTER" == "WULVER" ]; then
-    EXP_DIR_PREFIX="/project/phan/av787/projs/watermarking-v1/outputs/"
+    EXP_DIR_PREFIX="/project/phan/av787/projs/watermarking-v1/outputs"
 else
-    EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1/"
+    EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1"
 fi
 
 for temperature in $(seq 0.2 0.2 1.0); do

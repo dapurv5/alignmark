@@ -85,7 +85,9 @@ class WmGeneratorBeam:
 
             # Sample num_beams indices from multinomial distribution of next_scores
             # Note that when temperature > 0, the beam search is not monotonically decreasing
-            top_indices = torch.multinomial(probs_sort, num_samples=num_beams)
+            top_indices = torch.multinomial(
+                probs_sort, num_samples=num_beams, generator=self.rng
+            )
             next_scores = torch.gather(probs_sort, -1, top_indices)
             next_tokens = torch.gather(probs_idx, -1, top_indices)
         else:
@@ -357,7 +359,9 @@ class MarylandGeneratorBeam(WmGeneratorBeam):
 
             # Sample num_beams indices from multinomial distribution of next_scores
             # Note that when temperature > 0, the beam search is not monotonically decreasing
-            top_indices = torch.multinomial(probs_sort, num_samples=num_beams)
+            top_indices = torch.multinomial(
+                probs_sort, num_samples=num_beams, generator=self.rng
+            )
             next_scores = torch.gather(probs_sort, -1, top_indices)
             next_tokens = torch.gather(probs_idx, -1, top_indices)
         else:

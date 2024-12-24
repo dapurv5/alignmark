@@ -207,7 +207,9 @@ class MarylandDetector(WmDetector):
         seed = self.get_seed_rng(ngram_tokens)
         self.rng.manual_seed(seed)
         scores = torch.zeros(self.vocab_size)
-        vocab_permutation = torch.randperm(self.vocab_size, generator=self.rng)
+        vocab_permutation = torch.randperm(
+            self.vocab_size, generator=self.rng, device=self.device
+        )
         greenlist = vocab_permutation[
             : int(self.gamma * self.vocab_size)
         ]  # gamma * n toks in the greenlist
@@ -282,11 +284,11 @@ class PFDetector(WmDetector):
         """
         seed = self.get_seed_rng(ngram_tokens)
         self.rng.manual_seed(seed)
-        rs = torch.rand(self.vocab_size, generator=self.rng)  # n
+        rs = torch.rand(self.vocab_size, generator=self.rng, device=self.device)  # n
         # Ensure rs is non-zero or assign a very small value to zero-valued elements
         rs[rs == 0] = 1e-4
         scores = -rs.log().roll(-token_id)
-        return scores
+        return scores.cpu()
 
 
 class OpenaiDetector(WmDetector):
@@ -313,9 +315,9 @@ class OpenaiDetector(WmDetector):
         """
         seed = self.get_seed_rng(ngram_tokens)
         self.rng.manual_seed(seed)
-        rs = torch.rand(self.vocab_size, generator=self.rng)  # n
+        rs = torch.rand(self.vocab_size, generator=self.rng, device=self.device)  # n
         scores = -(1 - rs).log().roll(-token_id)
-        return scores
+        return scores.cpu()
 
     def get_pvalue(self, score: float, ntoks: int, eps: float):
         """from cdf of a gamma distribution"""
@@ -340,9 +342,9 @@ class OpenaiDetectorZ(WmDetector):
         """same as OpenaiDetector but using zscore"""
         seed = self.get_seed_rng(ngram_tokens)
         self.rng.manual_seed(seed)
-        rs = torch.rand(self.vocab_size, generator=self.rng)  # n
+        rs = torch.rand(self.vocab_size, generator=self.rng, device=self.device)  # n
         scores = -(1 - rs).log().roll(-token_id)
-        return scores
+        return scores.cpu()
 
     def get_pvalue(self, score: float, ntoks: int, eps: float):
         """from cdf of a normal distribution"""

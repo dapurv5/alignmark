@@ -240,14 +240,14 @@ class WatermarkTextPairsGenerator(BaseWatermarkGenerator):
             watermarked_texts: list[list[str]] = self.wm_generator.generate(
                 prompts,
                 **gen_kwargs,
-                beam_size=self.beam_size,
-                num_generations_per_prompt=self.num_wm_generations_per_prompt,
+                num_beams=self.beam_size,
+                num_return_sequences=self.num_wm_generations_per_prompt,
             )
             unwatermarked_texts: list[list[str]] = self.generator.generate(
                 prompts,
                 **gen_kwargs,
-                beam_size=self.beam_size,
-                num_generations_per_prompt=self.num_unwm_generations_per_prompt,
+                num_beams=self.beam_size,
+                num_return_sequences=self.num_unwm_generations_per_prompt,
             )
             return self._prepare_beamed_outputs(
                 prompts, watermarked_texts, unwatermarked_texts
@@ -340,7 +340,14 @@ class WatermarkTextPairsGenerator(BaseWatermarkGenerator):
 
             results.append(row)
 
-        self._print_batch_metrics(prompts, watermarked_outs, unwatermarked_outs)
+        # Flatten the watermarked_outs and unwatermarked_outs to compute batch metrics
+        watermarked_outs_ = []
+        unwatermarked_outs_ = []
+        for out in watermarked_outs:
+            watermarked_outs_.extend(out)
+        for out in unwatermarked_outs:
+            unwatermarked_outs_.extend(out)
+        self._print_batch_metrics(watermarked_outs_, unwatermarked_outs_)
         return results
 
     def _prepare_greedy_outputs(
@@ -376,17 +383,16 @@ class WatermarkTextPairsGenerator(BaseWatermarkGenerator):
                 }
             )
 
-        self._print_batch_metrics(prompts, watermarked_outs, unwatermarked_outs)
+        self._print_batch_metrics(watermarked_outs, unwatermarked_outs)
         return results
 
-    def _print_batch_metrics(self, prompts, watermarked_outs, unwatermarked_outs):
-        n = len(prompts)
+    def _print_batch_metrics(self, watermarked_outs, unwatermarked_outs):
         wm_correct = sum(1 for out in watermarked_outs if out["is_watermarked"])
         unwm_correct = sum(1 for out in unwatermarked_outs if not out["is_watermarked"])
 
         print(
-            f"Batch FNR: {(n - wm_correct) / n:.4f}, "
-            f"Batch FPR: {(n - unwm_correct) / n:.4f}"
+            f"Batch FNR: {(len(watermarked_outs) - wm_correct) / len(watermarked_outs):.4f}, "
+            f"Batch FPR: {(len(unwatermarked_outs) - unwm_correct) / len(unwatermarked_outs):.4f}"
         )
 
 
