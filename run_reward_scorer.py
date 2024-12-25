@@ -1,13 +1,19 @@
 import glob
+import logging
 import multiprocessing
 import os
-import time
 
 import fire
 import numpy as np
 
 from reward_scorer import RewardScorerRegistry
 from utils import get_device_to_use
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Set start method to spawn
+multiprocessing.set_start_method("spawn", force=True)
 
 
 def run_reward_scorer(
@@ -19,7 +25,6 @@ def run_reward_scorer(
     debug_mode: bool = False,
 ):
     device_to_use = get_device_to_use(num_gpus_per_process, num_processes)
-    scorer = RewardScorerRegistry.get(reward_model)(device=device_to_use)
 
     def process_single_file(
         input_path: str, output_path: str, num_processes: int, num_gpus_per_process: int
@@ -28,6 +33,7 @@ def run_reward_scorer(
         output_dir = os.path.dirname(output_path)
 
         if num_processes == 1 and num_gpus_per_process == 0:
+            scorer = RewardScorerRegistry.get(reward_model)(device="cpu")
             scorer.compute_rewards(input_path, output_path)
             return
 
@@ -125,13 +131,18 @@ def process_func(
         process_id = os.getpid()
         print(f"Process {process_id} starting with GPU IDs {gpu_ids_to_use}")
 
+        # Set CUDA environment variables before any CUDA operations
         os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(
             [str(gpu_id) for gpu_id in gpu_ids_to_use]
         )
         os.environ["TOKENIZERS_PARALLELISM"] = "false"
-        scorer = RewardScorerRegistry.get(reward_model)(device=device_to_use)
+
+        print(f"Process {process_id}: Loading model {reward_model}")
+        scorer = RewardScorerRegistry.get(reward_model)(
+            device=device_to_use, gpu_ids=gpu_ids_to_use
+        )
         for input_file in files:
-            print(f"Process {process_id}: Processing {input_file}")
+            logger.info(f"Process {process_id}: Processing {input_file}")
             input_filename = os.path.basename(input_file)
             output_filename = (
                 os.path.splitext(input_filename)[0]
@@ -145,9 +156,11 @@ def process_func(
                 != sum(1 for _ in open(output_filename))
             ):
                 scorer.compute_rewards(input_file, output_filename)
-                print(f"Process {process_id}: Completed {input_file}")
+                logger.info(f"Process {process_id}: Completed {input_file}")
     except Exception as e:
-        print(f"Error in process {process_id} with GPU IDs {gpu_ids_to_use}: {str(e)}")
+        logger.error(
+            f"Error in process {process_id} with GPU IDs {gpu_ids_to_use}: {str(e)}"
+        )
         raise e
 
 
@@ -178,44 +191,38 @@ def compute_parallel(
                 device_to_use,
             )
     else:
-        ctx = multiprocessing.get_context("spawn")
-        with ctx.Pool(num_processes) as pool:
-            async_results = []
-            for process_idx in range(num_processes):
-                print(f"Launching process {process_idx}...")
-                files_to_process_for_this_process = files_to_process[process_idx]
-                gpu_ids_for_this_process = [
-                    process_idx * num_gpus_per_process + gpu_id
-                    for gpu_id in range(num_gpus_per_process)
-                ]
-                async_result = pool.apply_async(
-                    process_func,
-                    args=(
-                        files_to_process_for_this_process,
-                        gpu_ids_for_this_process,
-                        reward_model,
-                        output_dir,
-                        device_to_use,
-                    ),
-                )
-                async_results.append(async_result)
+        print(f"Launching {num_processes} processes...")
+        processes = []
+        for process_idx in range(num_processes):
+            files_to_process_for_this_process = files_to_process[process_idx]
+            gpu_ids_for_this_process = [
+                process_idx * num_gpus_per_process + gpu_id
+                for gpu_id in range(num_gpus_per_process)
+            ]
 
-            pool.close()
-            pool.join()
+            p = multiprocessing.Process(
+                target=process_func,
+                args=(
+                    files_to_process_for_this_process,
+                    gpu_ids_for_this_process,
+                    reward_model,
+                    output_dir,
+                    device_to_use,
+                ),
+            )
+            p.daemon = False  # Ensure process isn't daemonic
+            print(
+                f"Starting process {process_idx} for GPU(s) {gpu_ids_for_this_process}"
+            )
+            p.start()
+            processes.append(p)
 
-            while async_results:
-                for i, result in enumerate(async_results[:]):
-                    try:
-                        if result.ready():
-                            result.get(timeout=1)
-                            async_results.remove(result)
-                            print(f"Process {i} completed successfully")
-                    except Exception as e:
-                        print(f"Process {i} failed with error: {str(e)}")
-                        raise e
-                time.sleep(5)
-
-            pool.join()
+        # Wait for all processes to complete
+        for idx, p in enumerate(processes):
+            p.join()
+            if p.exitcode != 0:
+                raise RuntimeError(f"Process {idx} failed with exit code {p.exitcode}")
+            print(f"Process {idx} completed successfully")
 
 
 if __name__ == "__main__":

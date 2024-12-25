@@ -52,10 +52,15 @@ def pick_first_k_blocks(data: dict, fieldname: str = "watermarked_text", k: int 
 def leave_last_block(data: dict, fieldname: str = "watermarked_text"):
     if isinstance(data[fieldname], list):
         data[fieldname] = [
-            "\n".join(text.split("\n\n")[:-1]) for text in data[fieldname]
+            "\n".join(text.split("\n\n")[:-1]) if text.strip()[-1] != "." else text
+            for text in data[fieldname]
         ]
     else:
-        data[fieldname] = "\n".join(data[fieldname].split("\n\n")[:-1])
+        data[fieldname] = (
+            "\n".join(data[fieldname].split("\n\n")[:-1])
+            if data[fieldname].strip()[-1] != "."
+            else data[fieldname]
+        )
     return data
 
 
@@ -66,6 +71,25 @@ def remove_token(
         data[fieldname] = [text.replace(token, "").strip() for text in data[fieldname]]
     else:
         data[fieldname] = data[fieldname].replace(token, "").strip()
+    return data
+
+
+def remove_last_incomplete_sentence(data: dict, fieldname: str = "watermarked_text"):
+    if isinstance(data[fieldname], list):
+        # first find position of last dot
+        last_dot_positions = [text.rfind(".") for text in data[fieldname]]
+        # then remove last incomplete sentence
+        # make sure to keep the last dot
+        data[fieldname] = [
+            text[: last_dot_positions[i]].strip() + "."
+            for i, text in enumerate(data[fieldname])
+        ]
+    else:
+        # first find position of last dot
+        last_dot_position = data[fieldname].rfind(".")
+        # then remove last incomplete sentence
+        # make sure to keep the last dot
+        data[fieldname] = data[fieldname][:last_dot_position].strip() + "."
     return data
 
 
@@ -114,6 +138,7 @@ def cleanup(
                 data = prune_multiple_turns(data, field, role_tag)
 
             # Keep only last text block
+            data = remove_last_incomplete_sentence(data, field)
             data = leave_last_block(data, field)
 
             # Remove noise tokens
