@@ -66,9 +66,8 @@ for temperature in $(seq 0.4 0.2 1.2); do
                 --dataset_name "Dahoas/full-hh-rlhf" \
                 --dataset_split "test" \
                 --text_field "prompt" \
-                --watermark_name "maryland" \
-                --delta 2.0 \
-                --gamma 0.5 \
+                --watermark_name "openai" \
+                --ngram 1 \
                 --threshold 0.05 \
                 --seed $SEED \
                 --temperature $temperature \
