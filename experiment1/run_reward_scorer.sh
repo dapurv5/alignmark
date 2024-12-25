@@ -33,4 +33,5 @@ python run_reward_scorer.py \
     --output_path $OUTPUT_DIR \
     --reward_model $REWARD_MODEL \
     --num_processes $NUM_PROCESSES \
-    --num_gpus_per_process $NUM_GPUS_PER_PROCESS
+    --num_gpus_per_process $NUM_GPUS_PER_PROCESS \
+    --debug_mode True
