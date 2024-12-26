@@ -146,7 +146,20 @@ class WmGeneratorBeam:
         beam_scores = torch.zeros((bsz, num_beams), device=self.device)
         input_text_mask = tokens != self.pad_id
 
-        start_pos = min_prompt_size
+        # Get individual prompt lengths for each batch
+        prompt_lengths = [
+            (tokens[i * num_beams] != self.pad_id).sum() for i in range(bsz)
+        ]
+
+        # Only allow generation after each prompt's actual length
+        for batch_idx in range(bsz):
+            batch_start = batch_idx * num_beams
+            batch_end = (batch_idx + 1) * num_beams
+            prompt_length = prompt_lengths[batch_idx]
+            input_text_mask[batch_start:batch_end, :prompt_length] = True
+            input_text_mask[batch_start:batch_end, prompt_length:] = False
+
+        start_pos = min(prompt_lengths).item()
         prev_pos = 0
         outputs = None
 
@@ -180,23 +193,22 @@ class WmGeneratorBeam:
                     batch_start = batch_idx * num_beams
                     batch_end = (batch_idx + 1) * num_beams
 
-                    # Skip if this position is part of the input text
-                    if input_text_mask[batch_start, cur_pos]:
-                        continue
-
                     if num_beams > 1:
-                        if cur_pos == start_pos:
-                            beam_scores[batch_idx] = next_token_scores[batch_start]
-                            tokens[batch_start:batch_end, cur_pos] = next_tokens[
-                                batch_start
+                        # Initialize beams at the end of each prompt
+                        if cur_pos == prompt_lengths[batch_idx].item():
+                            beam_scores[batch_idx] = next_token_scores[
+                                batch_start : batch_start + num_beams, 0
                             ]
-                        else:
+                            tokens[batch_start:batch_end, cur_pos] = next_tokens[
+                                batch_start : batch_start + num_beams, 0
+                            ]
+                        # Only update after prompt length
+                        elif cur_pos > prompt_lengths[batch_idx].item():
                             # Calculate scores for all possible next tokens
                             beam_scores_batch = (
                                 beam_scores[batch_idx].unsqueeze(1)
                                 + next_token_scores[batch_start:batch_end]
                             )
-
                             # Get top-k next tokens and their scores
                             beam_scores_flat = beam_scores_batch.view(-1)
                             top_k_scores, top_k_indices = torch.topk(
@@ -206,15 +218,12 @@ class WmGeneratorBeam:
                                 largest=True,
                                 sorted=True,
                             )
-
                             beam_indices = top_k_indices // num_beams
                             token_indices = next_tokens[batch_start:batch_end].view(-1)[
                                 top_k_indices % num_beams
                             ]
-
                             # Update beam scores
                             beam_scores[batch_idx] = top_k_scores
-
                             # Update tokens
                             for beam_idx in range(num_beams):
                                 tokens[batch_start + beam_idx, :cur_pos] = tokens[
@@ -223,6 +232,8 @@ class WmGeneratorBeam:
                                 tokens[batch_start + beam_idx, cur_pos] = token_indices[
                                     beam_idx
                                 ]
+                        else:
+                            continue
                     else:
                         # Only update tokens if not in input text
                         if not input_text_mask[batch_start, cur_pos]:
