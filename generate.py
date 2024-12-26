@@ -230,9 +230,13 @@ class WatermarkTextPairsGenerator(BaseWatermarkGenerator):
     """
 
     def clean_text(self, text: str):
-        return self.tokenizer.decode(
-            self.tokenizer.encode(text), skip_special_tokens=True
-        )
+        # return self.tokenizer.decode(
+        #     self.tokenizer.encode(text), skip_special_tokens=True
+        # )
+        # WARNING: This is important to avoid the problem of all generations having
+        # same scores. At low temperatures, the difference is really minimal and
+        # this ends up causing all generations to have same scores.
+        return text
 
     def prepare_output_rows(self, prompts: list[str], **gen_kwargs) -> list[dict]:
         # Generate texts using beam search or greedy decoding

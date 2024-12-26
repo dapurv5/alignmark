@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 import torch
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
@@ -36,17 +38,21 @@ generator = WmGeneratorBeam(model, tokenizer)
 
 # Sample prompt
 prompt = "Explain the importance of renewable energy sources."
+prompt = "\n\nHuman: I've been seeing a lot of slugs outside recently, even crawling up trees. Should I do something about them, or just let them be?\n\nAssistant:"
+num_return_sequences = 2
+batch_size = 2
 
 # Generate watermarked text (assuming the generate method exists)
+start_time = time.time()
 watermarked_texts = generator.generate(
-    [prompt, prompt],
+    [prompt] * batch_size,
     temperature=0.7,
     top_p=0.95,
     max_gen_len=200,
-    num_beams=2,
-    num_return_sequences=2,
+    num_beams=num_return_sequences,
+    num_return_sequences=num_return_sequences,
 )
-
+end_time = time.time()
 print("Generated watermarked text:")
 print(watermarked_texts[0])
 print()
@@ -58,30 +64,29 @@ detector = OpenaiDetector(tokenizer, ngram=4)
 
 # Custom detect method
 def detect(detector, text: str, threshold=0.05):
-    scores = detector.get_scores_by_t([text])
-    pvalues = detector.get_pvalues(scores)
+    scores_no_aggreg = detector.get_scores_by_t([text])
+    pvalues = detector.get_pvalues(scores_no_aggreg)
+    scores = detector.aggregate_scores(scores_no_aggreg)
 
     # Assuming we're interested in the first payload (index 0)
     pvalue = pvalues[0][0]
+    score = scores[0][0]
 
     is_watermarked = pvalue < threshold
     return {
         "is_watermarked": is_watermarked,
-        "scores": scores,
+        "scores_no_aggreg": scores_no_aggreg,
         "pvalue": pvalue,
+        "score": score,
     }
 
 
-# Detect watermark in the generated text
-detection_result = detect(detector, watermarked_texts[0])
-
-print("Watermark detection result:")
-print(f"Is watermarked: {detection_result['is_watermarked']}")
-print(f"P-value: {detection_result['pvalue']}")
-
-print("-" * 100)
-detection_result = detect(detector, watermarked_texts[1])
-
-print("Watermark detection result:")
-print(f"Is watermarked: {detection_result['is_watermarked']}")
-print(f"P-value: {detection_result['pvalue']}")
+for batch_idx in range(batch_size):
+    for seq_idx in range(num_return_sequences):
+        detection_result = detect(detector, watermarked_texts[batch_idx][seq_idx])
+        print(f"Watermark detection result for batch {batch_idx}, sequence {seq_idx}:")
+        print(f"Is watermarked: {detection_result['is_watermarked']}")
+        print(f"P-value: {detection_result['pvalue']}")
+        print(f"Score: {detection_result['score']}")
+        print("-" * 100)
+print(f"Time taken: {end_time - start_time} seconds")

@@ -35,9 +35,12 @@ class WmGeneratorBeam:
         # Move RNG to GPU if CUDA is available
         if torch.cuda.is_available():
             self.rng = torch.Generator(device=self.device)
+            self.sampling_rng = torch.Generator(device=self.device)
         else:
             self.rng = torch.Generator()
+            self.sampling_rng = torch.Generator()
         self.rng.manual_seed(self.seed)
+        self.sampling_rng.manual_seed(self.seed)
         self.hashtable = torch.randperm(1000003).to(self.device)
 
     def hashint(self, integer_tensor: torch.LongTensor) -> torch.LongTensor:
@@ -86,7 +89,7 @@ class WmGeneratorBeam:
             # Sample num_beams indices from multinomial distribution of next_scores
             # Note that when temperature > 0, the beam search is not monotonically decreasing
             top_indices = torch.multinomial(
-                probs_sort, num_samples=num_beams, generator=self.rng
+                probs_sort, num_samples=num_beams, generator=self.sampling_rng
             )
             next_scores = torch.gather(probs_sort, -1, top_indices)
             next_tokens = torch.gather(probs_idx, -1, top_indices)
