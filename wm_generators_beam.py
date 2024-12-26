@@ -233,9 +233,11 @@ class OpenaiGeneratorBeam(WmGeneratorBeam):
                 # Modified watermarking score for beam search
                 probs_sort[ii] = torch.pow(rs, 1 / probs_sort[ii])
 
-            # select argmax ( r^(1/p) )
-            # Get top token and score for each sequence in batch
-            next_scores, next_tokens = torch.max(probs_sort, dim=-1, keepdim=True)
+            # Sample from multinomial ( r^(1/p) ) instead of argmax ( r^(1/p) )
+            next_tokens = torch.multinomial(
+                probs_sort, num_samples=1, generator=self.rng
+            )
+            next_scores = torch.gather(probs_sort, -1, next_tokens)
             next_tokens = torch.gather(probs_idx, -1, next_tokens)
         else:
             # For greedy search, get top token and score

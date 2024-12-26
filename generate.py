@@ -241,17 +241,17 @@ class WatermarkTextPairsGenerator(BaseWatermarkGenerator):
     def prepare_output_rows(self, prompts: list[str], **gen_kwargs) -> list[dict]:
         # Generate texts using beam search or greedy decoding
         if self.beamed_generation:
-            watermarked_texts: list[list[str]] = self.wm_generator.generate(
-                prompts,
-                **gen_kwargs,
-                num_beams=self.beam_size,
-                num_return_sequences=self.num_wm_generations_per_prompt,
-            )
             unwatermarked_texts: list[list[str]] = self.generator.generate(
                 prompts,
                 **gen_kwargs,
                 num_beams=self.beam_size,
                 num_return_sequences=self.num_unwm_generations_per_prompt,
+            )
+            watermarked_texts: list[list[str]] = self.wm_generator.generate(
+                prompts,
+                **gen_kwargs,
+                num_beams=self.beam_size,
+                num_return_sequences=self.num_wm_generations_per_prompt,
             )
             return self._prepare_beamed_outputs(
                 prompts, watermarked_texts, unwatermarked_texts

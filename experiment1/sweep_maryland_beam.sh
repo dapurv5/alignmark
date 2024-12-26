@@ -36,7 +36,7 @@ else
 fi
 
 # Generally higher temperatures because outputs are diverse
-for temperature in $(seq 0.4 0.2 1.2); do
+for temperature in $(seq 0.2 0.2 1.0); do
     echo "Running temperature = $temperature ..."
     sleep 2
 
@@ -79,9 +79,9 @@ for temperature in $(seq 0.4 0.2 1.2); do
                 --limit_dataset_size $DATASET_SIZE \
                 --dataset_start_row $START_ROW \
                 --dataset_end_row $END_ROW \
-                --num_wm_generations_per_prompt 4 \
-                --num_unwm_generations_per_prompt 2 \
-                --beam_size 5 \
+                --num_wm_generations_per_prompt 8 \
+                --num_unwm_generations_per_prompt 4 \
+                --beam_size 8 \
                 #--select_random_subset_from_dataset  # (keep this off otherwise the dataset will change)
         ) &
         sleep 10
