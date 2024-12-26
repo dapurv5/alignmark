@@ -24,7 +24,6 @@ def run_reward_scorer(
     num_gpus_per_process: int = 0,
     debug_mode: bool = False,
 ):
-    device_to_use = get_device_to_use(num_gpus_per_process, num_processes)
 
     def process_single_file(
         input_path: str, output_path: str, num_processes: int, num_gpus_per_process: int

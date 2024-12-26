@@ -12,10 +12,10 @@ set -o errexit -o xtrace -o nounset
 ###################
 CLUSTER="AWS"  # "AWS" or "WULVER"
 MODEL_NAME="meta-llama/Llama-3.1-8B-Instruct"
-EXP_NAME="exp_005_sweep_temperature_hh-rlhf_1k_beam"
+EXP_NAME="exp_001_sweep_temp_hhrlhf_beam"
 # Choose number of GPUs to be exactly divisible by DATASET_SIZE
 NUM_GPUS_AVAILABLE=4  # Don't set > 4 for now, because it hangs after a while for unknown reasons
-DATASET_SIZE=256
+DATASET_SIZE=1024
 BATCH_SIZE=8  # Use batch size 8 for 40GB GPU for beam size 5
 SEED=42
 
@@ -68,7 +68,8 @@ for temperature in $(seq 0.4 0.2 1.2); do
                 --text_field "prompt" \
                 --watermark_name "maryland" \
                 --delta 2.0 \
-                --gamma 0.5 \
+                --gamma 0.25 \
+                --ngram 4 \
                 --threshold 0.05 \
                 --seed $SEED \
                 --temperature $temperature \
