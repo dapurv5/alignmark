@@ -279,24 +279,41 @@ class MarylandGenerator(WmGenerator):
         - use the seed to partition the vocabulary into greenlist (gamma*V words) and blacklist
         - add delta to greenlist words' logits
         payload (the message) is encoded by shifting the secret vector r by `payload`.
+
+        Shape information:
+        - logits: (bsz, vocab_size) where bsz is batch size and vocab_size is vocabulary size
+        - ngram_tokens: (bsz, ngram) where ngram is the context window size
+        - probs: (bsz, vocab_size) probabilities after softmax
+        - probs_sort: (bsz, vocab_size) sorted probabilities in descending order
+        - probs_idx: (bsz, vocab_size) indices of sorted probabilities
+        - probs_sum: (bsz, vocab_size) cumulative sum of sorted probabilities
+        - mask: (bsz, vocab_size) boolean mask for top-p filtering
+        - next_token: (bsz,) final sampled token indices
         """
-        logits = self.logits_processor(logits, ngram_tokens)
+        logits = self.logits_processor(logits, ngram_tokens)  # (bsz, vocab_size)
         if temperature > 0:
-            probs = torch.softmax(logits / temperature, dim=-1)
-            probs_sort, probs_idx = torch.sort(probs, dim=-1, descending=True)
-            probs_sum = torch.cumsum(probs_sort, dim=-1)
-            mask = probs_sum - probs_sort > top_p
-            probs_sort[mask] = 0.0
-            probs_sort.div_(probs_sort.sum(dim=-1, keepdim=True))
+            # Convert logits to probabilities with temperature scaling
+            probs = torch.softmax(logits / temperature, dim=-1)  # (bsz, vocab_size)
+            # Sort probabilities in descending order
+            probs_sort, probs_idx = torch.sort(
+                probs, dim=-1, descending=True
+            )  # (bsz, vocab_size)
+            # Compute cumulative probabilities
+            probs_sum = torch.cumsum(probs_sort, dim=-1)  # (bsz, vocab_size)
+            # Create mask for top-p (nucleus) sampling
+            mask = probs_sum - probs_sort > top_p  # (bsz, vocab_size)
+            probs_sort[mask] = 0.0  # Zero out probabilities beyond top-p
+            probs_sort.div_(probs_sort.sum(dim=-1, keepdim=True))  # Renormalize
+            # Sample next token using multinomial sampling
             next_token = torch.multinomial(
                 probs_sort, num_samples=1, generator=self.rng
-            )  # one hot of next token, ordered by original probs
-            next_token = torch.gather(
-                probs_idx, -1, next_token
-            )  # one hot of next token, ordered by vocab
+            )  # (bsz, 1)
+            # Map back to original vocabulary indices
+            next_token = torch.gather(probs_idx, -1, next_token)  # (bsz, 1)
         else:
-            next_token = torch.argmax(logits, dim=-1)
-        next_token = next_token.reshape(-1)
+            # If temperature is 0, just take argmax
+            next_token = torch.argmax(logits, dim=-1)  # (bsz,)
+        next_token = next_token.reshape(-1)  # (bsz,)
         return next_token
 
     def logits_processor(self, logits, ngram_tokens):
