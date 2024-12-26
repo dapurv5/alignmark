@@ -35,12 +35,9 @@ class WmGeneratorBeam:
         # Move RNG to GPU if CUDA is available
         if torch.cuda.is_available():
             self.rng = torch.Generator(device=self.device)
-            self.sampling_rng = torch.Generator(device=self.device)
         else:
             self.rng = torch.Generator()
-            self.sampling_rng = torch.Generator()
         self.rng.manual_seed(self.seed)
-        self.sampling_rng.manual_seed(self.seed)
         self.hashtable = torch.randperm(1000003).to(self.device)
 
     def hashint(self, integer_tensor: torch.LongTensor) -> torch.LongTensor:
@@ -64,19 +61,18 @@ class WmGeneratorBeam:
             seed = torch.min(seed).item()
         return seed
 
-    def sample_next_beam(
+    def sample_next(
         self,
         logits: torch.FloatTensor,  # (bsz, vocab_size): logits for last token
         ngram_tokens: torch.LongTensor,  # (bsz, ngram): tokens to consider when seeding
-        num_beams: int,  # number of beams to consider
         temperature: float = 0.8,  # temperature for sampling
         top_p: float = 0.95,  # top p for sampling
     ) -> Tuple[torch.LongTensor, torch.FloatTensor]:
         """
         Sample next tokens for beam search, returning both tokens and their scores.
         Returns:
-            next_tokens: shape (bsz, num_beams)
-            next_scores: shape (bsz, num_beams)
+            next_tokens: shape (bsz * num_beams)
+            next_scores: shape (bsz * num_beams)
         """
         if temperature > 0:
             probs = torch.softmax(logits / temperature, dim=-1)
@@ -89,15 +85,13 @@ class WmGeneratorBeam:
             # Sample num_beams indices from multinomial distribution of next_scores
             # Note that when temperature > 0, the beam search is not monotonically decreasing
             top_indices = torch.multinomial(
-                probs_sort, num_samples=num_beams, generator=self.sampling_rng
+                probs_sort, num_samples=1, generator=self.rng
             )
             next_scores = torch.gather(probs_sort, -1, top_indices)
             next_tokens = torch.gather(probs_idx, -1, top_indices)
         else:
             # For greedy search, just take the top num_beams tokens
-            next_scores, next_tokens = torch.topk(
-                logits, num_beams, dim=-1, largest=True, sorted=True
-            )
+            next_scores, next_tokens = torch.argmax(logits, dim=-1)
 
         return next_tokens, next_scores
 
@@ -117,7 +111,7 @@ class WmGeneratorBeam:
         """
         assert (
             num_return_sequences <= num_beams
-        ), "num_return_sequences must be <= num_beams"
+        ), f"num_return_sequences ({num_return_sequences}) must be less than or equal to num_beams ({num_beams})"
 
         bsz = len(prompts)
         prompt_tokens = [
@@ -127,39 +121,20 @@ class WmGeneratorBeam:
         max_prompt_size = max([len(t) for t in prompt_tokens])
         total_len = min(self.max_seq_len, max_gen_len + max_prompt_size)
 
-        # Initialize beam candidates for each prompt
-        # Shape: (bsz * num_beams, total_len)
+        # Initialize tokens and scores
         tokens = torch.full(
             (bsz * num_beams, total_len), self.pad_id, device=self.device
         ).long()
-
-        # Copy prompt tokens for each beam
-        for k, t in enumerate(prompt_tokens):
-            tokens[k * num_beams : (k + 1) * num_beams, : min(len(t), total_len)] = (
-                torch.tensor(t[:total_len], device=self.device)
-                .long()
-                .unsqueeze(0)
-                .repeat(num_beams, 1)
-            )
-
-        # Track beam scores
         beam_scores = torch.zeros((bsz, num_beams), device=self.device)
+
+        # Copy input prompts
+        for k, t in enumerate(prompt_tokens):
+            for beam in range(num_beams):
+                beam_idx = k * num_beams + beam
+                tokens[beam_idx, : len(t)] = torch.tensor(t, device=self.device).long()
+
         input_text_mask = tokens != self.pad_id
-
-        # Get individual prompt lengths for each batch
-        prompt_lengths = [
-            (tokens[i * num_beams] != self.pad_id).sum() for i in range(bsz)
-        ]
-
-        # Only allow generation after each prompt's actual length
-        for batch_idx in range(bsz):
-            batch_start = batch_idx * num_beams
-            batch_end = (batch_idx + 1) * num_beams
-            prompt_length = prompt_lengths[batch_idx]
-            input_text_mask[batch_start:batch_end, :prompt_length] = True
-            input_text_mask[batch_start:batch_end, prompt_length:] = False
-
-        start_pos = min(prompt_lengths).item()
+        start_pos = min_prompt_size
         prev_pos = 0
         outputs = None
 
@@ -170,101 +145,51 @@ class WmGeneratorBeam:
                     use_cache=True,
                     past_key_values=outputs.past_key_values if prev_pos > 0 else None,
                 )
-
                 ngram_tokens = tokens[:, cur_pos - self.ngram : cur_pos]
 
-                # Get next token candidates using watermarking method
-                if num_beams > 1:
-                    next_tokens, next_token_scores = self.sample_next_beam(
-                        outputs.logits[:, -1, :],
-                        ngram_tokens,
-                        num_beams,
-                        temperature,
-                        top_p,
-                    )
-                else:
-                    next_tokens = self.sample_next(
-                        outputs.logits[:, -1, :], ngram_tokens, temperature, top_p
-                    )
-                    next_token_scores = torch.zeros_like(next_tokens, dtype=torch.float)
+                # Get next token probabilities and select top-k
+                next_token_logits = outputs.logits[:, -1, :]
+                next_tokens, next_scores = self.sample_next(
+                    next_token_logits,
+                    ngram_tokens,
+                    temperature=temperature,
+                    top_p=top_p,
+                )
+                # Update beam scores with log probabilities
+                beam_scores = beam_scores.view(-1) + torch.log(next_scores.view(-1))
+                beam_scores = beam_scores.view(bsz, num_beams)
 
-                # For each prompt, update beams
-                for batch_idx in range(bsz):
-                    batch_start = batch_idx * num_beams
-                    batch_end = (batch_idx + 1) * num_beams
-
-                    if num_beams > 1:
-                        # Initialize beams at the end of each prompt
-                        if cur_pos == prompt_lengths[batch_idx].item():
-                            beam_scores[batch_idx] = next_token_scores[
-                                batch_start : batch_start + num_beams, 0
-                            ]
-                            tokens[batch_start:batch_end, cur_pos] = next_tokens[
-                                batch_start : batch_start + num_beams, 0
-                            ]
-                        # Only update after prompt length
-                        elif cur_pos > prompt_lengths[batch_idx].item():
-                            # Calculate scores for all possible next tokens
-                            beam_scores_batch = (
-                                beam_scores[batch_idx].unsqueeze(1)
-                                + next_token_scores[batch_start:batch_end]
-                            )
-                            # Get top-k next tokens and their scores
-                            beam_scores_flat = beam_scores_batch.view(-1)
-                            top_k_scores, top_k_indices = torch.topk(
-                                beam_scores_flat,
-                                num_beams,
-                                dim=0,
-                                largest=True,
-                                sorted=True,
-                            )
-                            beam_indices = top_k_indices // num_beams
-                            token_indices = next_tokens[batch_start:batch_end].view(-1)[
-                                top_k_indices % num_beams
-                            ]
-                            # Update beam scores
-                            beam_scores[batch_idx] = top_k_scores
-                            # Update tokens
-                            for beam_idx in range(num_beams):
-                                tokens[batch_start + beam_idx, :cur_pos] = tokens[
-                                    batch_start + beam_indices[beam_idx], :cur_pos
-                                ]
-                                tokens[batch_start + beam_idx, cur_pos] = token_indices[
-                                    beam_idx
-                                ]
-                        else:
-                            continue
-                    else:
-                        # Only update tokens if not in input text
-                        if not input_text_mask[batch_start, cur_pos]:
-                            tokens[batch_start:batch_end, cur_pos] = next_tokens[
-                                batch_start:batch_end
-                            ]
-
+                # Change from (bsz * num_beams, 1) to (bsz * num_beams,)
+                next_tokens = next_tokens.view(-1)
+                # Only update tokens where we're not in the input text
+                tokens[:, cur_pos] = torch.where(
+                    input_text_mask[:, cur_pos],
+                    tokens[:, cur_pos],  # keep original tokens
+                    next_tokens,  # use predicted tokens
+                )
                 prev_pos = cur_pos
 
-        # Prepare output sequences
-        decoded_sequences = []
-        for batch_idx in range(bsz):
-            batch_sequences = []
-            batch_start = batch_idx * num_beams
+        # Process results
+        decoded = []
+        for i in range(bsz):
+            beam_outputs = []
+            beam_scores_i = beam_scores[i]
+            ordered_beams = torch.argsort(beam_scores_i, descending=True)[
+                :num_return_sequences
+            ]
 
-            # Get top num_return_sequences beams
-            for beam_idx in range(num_return_sequences):
-                t = tokens[batch_start + beam_idx].tolist()
-                # Cut to max gen len
-                t = t[: len(prompt_tokens[batch_idx]) + max_gen_len]
-                # Cut to eos tok if any
-                try:
-                    t = t[: t.index(self.eos_id)]
-                except ValueError:
-                    pass
-                batch_sequences.append(self.tokenizer.decode(t))
+            for beam_idx in ordered_beams:
+                t = tokens[i * num_beams + beam_idx]
+                # Truncate to actual length
+                t = t[: len(prompt_tokens[i]) + max_gen_len]
+                # Find EOS if present
+                eos_indices = (t == self.eos_id).nonzero()
+                if len(eos_indices) > 0:
+                    t = t[: eos_indices[0]]
+                beam_outputs.append(self.tokenizer.decode(t.cpu().tolist()))
+            decoded.append(beam_outputs)
 
-            decoded_sequences.append(batch_sequences)
-
-        torch.cuda.empty_cache()
-        return decoded_sequences
+        return decoded
 
 
 class OpenaiGeneratorBeam(WmGeneratorBeam):
@@ -273,11 +198,10 @@ class OpenaiGeneratorBeam(WmGeneratorBeam):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def sample_next_beam(
+    def sample_next(
         self,
         logits: torch.FloatTensor,
         ngram_tokens: torch.LongTensor,
-        num_beams: int,
         temperature: float = 0.8,
         top_p: float = 0.95,
     ) -> Tuple[torch.LongTensor, torch.FloatTensor]:
@@ -309,16 +233,13 @@ class OpenaiGeneratorBeam(WmGeneratorBeam):
                 # Modified watermarking score for beam search
                 probs_sort[ii] = torch.pow(rs, 1 / probs_sort[ii])
 
-            # Get top-k tokens and scores for each sequence
-            next_scores, top_indices = torch.topk(
-                probs_sort, num_beams, dim=-1, largest=True, sorted=True
-            )
-            next_tokens = torch.gather(probs_idx, -1, top_indices)
+            # select argmax ( r^(1/p) )
+            # Get top token and score for each sequence in batch
+            next_scores, next_tokens = torch.max(probs_sort, dim=-1, keepdim=True)
+            next_tokens = torch.gather(probs_idx, -1, next_tokens)
         else:
-            # For greedy search, just take top-k tokens
-            next_scores, next_tokens = torch.topk(
-                logits, num_beams, dim=-1, largest=True, sorted=True
-            )
+            # For greedy search, get top token and score
+            next_scores, next_tokens = torch.max(logits, dim=-1, keepdim=True)
 
         return next_tokens, next_scores
 
@@ -348,11 +269,10 @@ class MarylandGeneratorBeam(WmGeneratorBeam):
             logits[ii] += bias  # add bias to greenlist words
         return logits
 
-    def sample_next_beam(
+    def sample_next(
         self,
         logits: torch.FloatTensor,
         ngram_tokens: torch.LongTensor,
-        num_beams: int,
         temperature: float = 0.8,
         top_p: float = 0.95,
     ) -> Tuple[torch.LongTensor, torch.FloatTensor]:
@@ -374,14 +294,11 @@ class MarylandGeneratorBeam(WmGeneratorBeam):
             # Sample num_beams indices from multinomial distribution of next_scores
             # Note that when temperature > 0, the beam search is not monotonically decreasing
             top_indices = torch.multinomial(
-                probs_sort, num_samples=num_beams, generator=self.rng
+                probs_sort, num_samples=1, generator=self.rng
             )
             next_scores = torch.gather(probs_sort, -1, top_indices)
             next_tokens = torch.gather(probs_idx, -1, top_indices)
         else:
-            # For greedy search, just take top-k tokens
-            next_scores, next_tokens = torch.topk(
-                logits, num_beams, dim=-1, largest=True, sorted=True
-            )
+            next_scores, next_tokens = torch.argmax(logits, dim=-1)
 
         return next_tokens, next_scores
