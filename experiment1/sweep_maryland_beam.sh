@@ -16,7 +16,7 @@ EXP_NAME="exp_001_sweep_temp_hhrlhf_beam"
 # Choose number of GPUs to be exactly divisible by DATASET_SIZE
 NUM_GPUS_AVAILABLE=4  # Don't set > 4 for now, because it hangs after a while for unknown reasons
 DATASET_SIZE=1024
-BATCH_SIZE=8  # Use batch size 8 for 40GB GPU for beam size 5
+BATCH_SIZE=8  # Use batch size 8 for 40GB GPU and also for 80GB GPU to keep it full utilized
 SEED=42
 
 ###################
@@ -79,9 +79,9 @@ for temperature in $(seq 0.2 0.2 1.0); do
                 --limit_dataset_size $DATASET_SIZE \
                 --dataset_start_row $START_ROW \
                 --dataset_end_row $END_ROW \
-                --num_wm_generations_per_prompt 8 \
-                --num_unwm_generations_per_prompt 4 \
-                --beam_size 8 \
+                --num_wm_generations_per_prompt 4 \  # 4 for 40GB, 8 for 80GB
+                --num_unwm_generations_per_prompt 2 \  # 2 for 40GB, 4 for 80GB
+                --beam_size 4 \  # 4 for 40GB, 8 for 80GB
                 #--select_random_subset_from_dataset  # (keep this off otherwise the dataset will change)
         ) &
         sleep 10
