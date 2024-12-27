@@ -85,6 +85,9 @@ class WmGenerator:
         prompt_tokens = [
             self.tokenizer.encode(x, add_special_tokens=False) for x in prompts
         ]
+        # Truncate prompts that are too long
+        prompt_tokens = [t[: self.max_seq_len] for t in prompt_tokens]
+
         min_prompt_size = min([len(t) for t in prompt_tokens])
         max_prompt_size = max([len(t) for t in prompt_tokens])
         total_len = min(self.max_seq_len, max_gen_len + max_prompt_size)
