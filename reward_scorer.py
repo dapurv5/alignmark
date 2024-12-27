@@ -157,14 +157,15 @@ class ArmoRewardScorer(RewardScorerBase):
     def __init__(self, device: str = "cpu", gpu_ids: list[int] = []):
         model_id = "RLHFlow/ArmoRM-Llama3-8B-v0.1"
         if gpu_ids:
-            assert device == "cuda"
+            assert device == "cuda", len(gpu_ids) == 1
+            gpu_id = gpu_ids[0]
+            device = f"cuda:{gpu_id}"
         self.model = AutoModelForSequenceClassification.from_pretrained(
             model_id,
-            device_map={"": gpu_ids},
+            device_map=device,
             trust_remote_code=True,
             torch_dtype=torch.bfloat16,
             max_length=2048,
-            truncation=True,
             attn_implementation="flash_attention_2",
         )
         self.tokenizer = AutoTokenizer.from_pretrained(

@@ -12,8 +12,8 @@ set -o errexit -o xtrace -o nounset
 ###################
 CLUSTER="AWS"  # "AWS" or "WULVER"
 EXP_NAME=${1:-"exp_001_sweep_temp_hhrlhf_beam"}
-NUM_GPUS_PER_PROCESS=2
-NUM_PROCESSES=2
+NUM_GPUS_PER_PROCESS=1
+NUM_PROCESSES=4
 REWARD_MODEL="armo"  # llm-blender/PairRM | armo
 REWARD_MODEL_SHORTFORM="armo"  # blender | armo
 ###################
