@@ -15,11 +15,11 @@ CLUSTER="AWS"  # "AWS" or "WULVER"
 MODEL_NAME=${1:-"meta-llama/Llama-3.1-8B-Instruct"}
 EXP_NAME=${2:-"exp_002_sweep_temp_truthfulqa_beam"}
 # Choose number of GPUs to be exactly divisible by DATASET_SIZE
-NUM_GPUS_AVAILABLE=${NUM_GPUS_AVAILABLE:-4}  # For OpenAI watermarking, we can use more GPUs (maybe not with multinomial sampling)
+NUM_GPUS_AVAILABLE=8  # For OpenAI watermarking, we can use more GPUs (even with multinomial sampling)
 DATASET_SIZE=800  # The actual dataset size is 817
 BATCH_SIZE=8  # Use batch size 8 for 40GB GPU and also for 80GB GPU to keep it full utilized
 SEED=42
-
+CLEAN_MODEL_AFTER_RUN=${CLEAN_MODEL_AFTER_RUN:-"false"}
 # Choose these values based on the GPU memory available
 # --num_wm_generations_per_prompt 4 \  # 4 for 40GB, 8 for 80GB
 # --num_unwm_generations_per_prompt 2 \  # 2 for 40GB, 4 for 80GB
@@ -27,12 +27,13 @@ SEED=42
 ###################
 # Before running the script give a prompt to the user to enter y for the question
 # "Are the model already downloaded and cached and symlinks created?"
-read -p "Are the model already downloaded and cached and symlinks created? (y/n): " answer
-if [ "$answer" != "y" ]; then
-    echo "Please download the model and create symlinks before running this script."
-    exit 1
-fi
+# read -p "Are the model already downloaded and cached and symlinks created? (y/n): " answer
+# if [ "$answer" != "y" ]; then
+#     echo "Please download the model and create symlinks before running this script."
+#     exit 1
+# fi
 
+python utils/download_model.py $MODEL_NAME
 
 if [ "$CLUSTER" == "WULVER" ]; then
     EXP_DIR_PREFIX="/project/phan/av787/projs/watermarking-v1/outputs"
@@ -102,3 +103,7 @@ for temperature in $(seq 0.2 0.2 1.0); do
     # Delete the parts directory
     rm -rf "$EXP_DIR_PREFIX/$EXP_NAME/parts"
 done
+
+if [ "$CLEAN_MODEL_AFTER_RUN" == "true" ]; then
+    python utils/clean_model.py $MODEL_NAME
+fi

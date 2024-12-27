@@ -33,10 +33,10 @@ done
 for model in "${list_of_models[@]}"; do
     echo "Running Maryland WM for model: $model"
     export CLEAN_MODEL_AFTER_RUN="false"
-    bash experiment3/run_maryland.sh $model
+    bash experiment1/sweep_maryland_beam.sh $model
     echo "Running OpenAI WM for model: $model"
     export CLEAN_MODEL_AFTER_RUN="true"
-    bash experiment3/run_openai.sh $model
+    bash experiment1/sweep_openai_beam.sh $model
 done
 
 for model in "${list_of_models[@]}"; do
