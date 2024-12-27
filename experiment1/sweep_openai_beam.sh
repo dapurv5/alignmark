@@ -18,7 +18,10 @@ NUM_GPUS_AVAILABLE=8  # For OpenAI watermarking, we can use more GPUs (maybe not
 DATASET_SIZE=1024
 BATCH_SIZE=8  # Use batch size 8 for 40GB GPU and also for 80GB GPU to keep it full utilized
 SEED=42
-
+# Choose these values based on the GPU memory available
+# --num_wm_generations_per_prompt 4 \  # 4 for 40GB, 8 for 80GB
+# --num_unwm_generations_per_prompt 2 \  # 2 for 40GB, 4 for 80GB
+# --beam_size 4 \  # 4 for 40GB, 8 for 80GB
 ###################
 # Before running the script give a prompt to the user to enter y for the question
 # "Are the model already downloaded and cached and symlinks created?"
@@ -64,7 +67,6 @@ for temperature in $(seq 0.2 0.2 1.0); do
                 --exp_dir "$EXP_DIR_PREFIX/$EXP_NAME/parts" \
                 --model_name $MODEL_NAME \
                 --dataset_name "Dahoas/full-hh-rlhf" \
-                --dataset_split "test" \
                 --text_field "prompt" \
                 --watermark_name "openai" \
                 --ngram 4 \
@@ -77,9 +79,9 @@ for temperature in $(seq 0.2 0.2 1.0); do
                 --limit_dataset_size $DATASET_SIZE \
                 --dataset_start_row $START_ROW \
                 --dataset_end_row $END_ROW \
-                --num_wm_generations_per_prompt 8 \  # 4 for 40GB, 8 for 80GB
-                --num_unwm_generations_per_prompt 4 \  # 2 for 40GB, 4 for 80GB
-                --beam_size 8 \  # 4 for 40GB, 8 for 80GB
+                --num_wm_generations_per_prompt 8 \
+                --num_unwm_generations_per_prompt 4 \
+                --beam_size 8
                 #--select_random_subset_from_dataset  # (keep this off otherwise the dataset will change)
         ) &
         sleep 10

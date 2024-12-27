@@ -13,6 +13,7 @@ def prune_dataset(dataset, limit_dataset_size, dataset_start_row, dataset_end_ro
 
 
 def prepare_dataset(dataset_name, dataset_subset_name, dataset_split, dataset_path):
+    dataset_subset_name = dataset_subset_name.strip()
     if dataset_name is not None and dataset_name != "":
         if dataset_subset_name:
             dataset = load_dataset(
