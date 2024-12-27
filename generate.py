@@ -209,6 +209,13 @@ class BaseWatermarkGenerator(ABC):
         pvalues = self.wm_detector.get_pvalues(scores_no_aggreg)
         scores = self.wm_detector.aggregate_scores(scores_no_aggreg)
         # Assuming we're interested in the first payload (index 0)
+        if len(pvalues) == 0 or len(pvalues[0]) == 0:
+            print(f"No pvalues found for text: {text} because it's too short")
+            return {
+                "is_watermarked": False,
+                "score": 0.0,
+                "pvalue": 1.0,
+            }
         pvalue = pvalues[0][0]
         score = scores[0][0]
         is_watermarked = pvalue < self.threshold

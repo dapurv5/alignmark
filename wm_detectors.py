@@ -103,6 +103,7 @@ class WmDetector:
                 'v2': only score unique {wm window+tok} is unique
             ntoks_max: maximum number of tokens
             payload_max: maximum number of messages
+        Note that this won't return a list of empty np.array if len(tokens_id[ii]) > self.ngram + 1
         Output:
             score_lists: list of [np array of score increments for every token and payload] for each text
         """
