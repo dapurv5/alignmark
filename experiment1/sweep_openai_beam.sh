@@ -11,12 +11,12 @@ set -o errexit -o xtrace -o nounset
 # Values to be set by user
 ###################
 CLUSTER="AWS"  # "AWS" or "WULVER"
-MODEL_NAME="meta-llama/Llama-3.1-8B-Instruct"
-EXP_NAME="exp_001_sweep_temp_hhrlhf_beam"
+MODEL_NAME=${1:-"meta-llama/Llama-3.1-8B-Instruct"}
+EXP_NAME=${2:-"exp_001_sweep_temp_hhrlhf_beam"}
 # Choose number of GPUs to be exactly divisible by DATASET_SIZE
-NUM_GPUS_AVAILABLE=8  # For OpenAI watermarking, we can use more GPUs (maybe not with multinomial sampling)
+NUM_GPUS_AVAILABLE=8  # For OpenAI watermarking, we can use more GPUs (even with multinomial sampling)
 DATASET_SIZE=1024
-BATCH_SIZE=8  # Use batch size 8 for 40GB GPU and also for 80GB GPU to keep it full utilized
+BATCH_SIZE=4  # Use batch size 4 for 40GB GPU and 8 for 80GB GPU to keep it full utilized
 SEED=42
 # Choose these values based on the GPU memory available
 # --num_wm_generations_per_prompt 4 \  # 4 for 40GB, 8 for 80GB
