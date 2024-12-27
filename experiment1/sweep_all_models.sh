@@ -24,12 +24,6 @@ list_of_models=("meta-llama/Llama-3.1-8B-Instruct" \
 "meta-llama/Llama-3.2-3B-Instruct" \
 "Qwen/Qwen2-14B-Instruct" )
 
-
-for model in "${list_of_models[@]}"; do
-    echo "Downloading model: $model"
-    python utils/download_model.py $model
-done
-
 for model in "${list_of_models[@]}"; do
     echo "Running Maryland WM for model: $model"
     export CLEAN_MODEL_AFTER_RUN="false"
@@ -37,10 +31,5 @@ for model in "${list_of_models[@]}"; do
     echo "Running OpenAI WM for model: $model"
     export CLEAN_MODEL_AFTER_RUN="true"
     bash experiment1/sweep_openai_beam.sh $model
-done
-
-for model in "${list_of_models[@]}"; do
-    echo "Cleaning model: $model"
-    python utils/clean_model.py $model
 done
 

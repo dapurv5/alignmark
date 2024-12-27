@@ -16,7 +16,7 @@ MODEL_NAME=${1:-"meta-llama/Llama-3.1-8B-Instruct"}
 EXP_NAME=${2:-"exp_004_overrefusal_beam"}
 # Choose number of GPUs to be exactly divisible by DATASET_SIZE
 NUM_GPUS_AVAILABLE=8
-DATASET_SIZE=3800  # The actual dataset size is 3819
+DATASET_SIZE=680  # The actual dataset size is 680
 BATCH_SIZE=8  # Use batch size 8 for 40GB GPU and also for 80GB GPU to keep it full utilized
 SEED=42
 CLEAN_MODEL_AFTER_RUN=${CLEAN_MODEL_AFTER_RUN:-"false"}
