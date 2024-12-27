@@ -12,10 +12,10 @@ set -o errexit -o xtrace -o nounset
 # Values to be set by user
 ###################
 CLUSTER="AWS"  # "AWS" or "WULVER"
-MODEL_NAME="meta-llama/Llama-3.1-8B-Instruct"
-EXP_NAME="exp_001_sweep_temp_truthfulqa_beam"
+MODEL_NAME=${1:-"meta-llama/Llama-3.1-8B-Instruct"}
+EXP_NAME=${2:-"exp_002_sweep_temp_truthfulqa_beam"}
 # Choose number of GPUs to be exactly divisible by DATASET_SIZE
-NUM_GPUS_AVAILABLE=4  # Don't set > 4 for now, because it hangs after a while for unknown reasons
+NUM_GPUS_AVAILABLE=${NUM_GPUS_AVAILABLE:-4}  # Don't set > 4 for now, because it hangs after a while for unknown reasons
 DATASET_SIZE=800  # The actual dataset size is 817
 BATCH_SIZE=8  # Use batch size 8 for 40GB GPU and also for 80GB GPU to keep it full utilized
 SEED=42

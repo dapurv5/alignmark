@@ -22,11 +22,16 @@ def run_reward_scorer(
     reward_model: str = "llm-blender/PairRM",
     num_processes: int = 1,
     num_gpus_per_process: int = 0,
+    gpu_start_id: int = 0,
     debug_mode: bool = False,
 ):
 
     def process_single_file(
-        input_path: str, output_path: str, num_processes: int, num_gpus_per_process: int
+        input_path: str,
+        output_path: str,
+        num_processes: int,
+        num_gpus_per_process: int,
+        gpu_start_id: int,
     ):
         """Process a single input file, either directly or by splitting into parts for parallel processing"""
         output_dir = os.path.dirname(output_path)
@@ -43,6 +48,7 @@ def run_reward_scorer(
                 output_dir,
                 num_processes,
                 num_gpus_per_process,
+                gpu_start_id,
                 reward_model,
             )
 
@@ -51,6 +57,7 @@ def run_reward_scorer(
         output_dir: str,
         num_processes: int,
         num_gpus_per_process: int,
+        gpu_start_id: int,
         reward_model: str,
     ):
         """Split input file into parts and process them in parallel"""
@@ -78,6 +85,7 @@ def run_reward_scorer(
                 num_gpus_per_process,
                 reward_model,
                 output_dir,
+                gpu_start_id,
                 debug_mode,
             )
 
@@ -88,7 +96,12 @@ def run_reward_scorer(
             os.rmdir(temp_dir)
 
     def process_directory(
-        input_path: str, output_path: str, num_processes: int, debug_mode: bool
+        input_path: str,
+        output_path: str,
+        num_processes: int,
+        num_gpus_per_process: int,
+        gpu_start_id: int,
+        debug_mode: bool,
     ):
         """Process all JSONL files in a directory in parallel"""
         # If output_path does not exist, create it
@@ -107,16 +120,28 @@ def run_reward_scorer(
             num_gpus_per_process,
             reward_model,
             output_path,
+            gpu_start_id,
             debug_mode,
         )
 
     # Main processing logic
     if os.path.isfile(input_path) and os.path.isfile(output_path):
         process_single_file(
-            input_path, output_path, num_processes, num_gpus_per_process
+            input_path,
+            output_path,
+            num_processes,
+            num_gpus_per_process,
+            gpu_start_id,
         )
     else:
-        process_directory(input_path, output_path, num_processes, debug_mode)
+        process_directory(
+            input_path,
+            output_path,
+            num_processes,
+            num_gpus_per_process,
+            gpu_start_id,
+            debug_mode,
+        )
 
 
 def process_func(
@@ -169,6 +194,7 @@ def compute_parallel(
     num_gpus_per_process,
     reward_model,
     output_dir,
+    gpu_start_id: int = 0,
     debug_mode: bool = False,
 ):
     files_to_process = np.array_split(filelist, num_processes)
@@ -179,7 +205,7 @@ def compute_parallel(
         for process_idx in range(num_processes):
             files_to_process_for_this_process = files_to_process[process_idx]
             gpu_ids_for_this_process = [
-                process_idx * num_gpus_per_process + gpu_id
+                gpu_start_id + process_idx * num_gpus_per_process + gpu_id
                 for gpu_id in range(num_gpus_per_process)
             ]
             process_func(
@@ -195,7 +221,7 @@ def compute_parallel(
         for process_idx in range(num_processes):
             files_to_process_for_this_process = files_to_process[process_idx]
             gpu_ids_for_this_process = [
-                process_idx * num_gpus_per_process + gpu_id
+                gpu_start_id + process_idx * num_gpus_per_process + gpu_id
                 for gpu_id in range(num_gpus_per_process)
             ]
 

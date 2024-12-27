@@ -5,7 +5,9 @@ from abc import abstractmethod
 from collections import OrderedDict
 
 import llm_blender
+import torch
 from tqdm import tqdm
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from cleanup_utils import cleanup
 
@@ -148,3 +150,44 @@ class BlenderRewardScorer(RewardScorerBase):
         # This is list of lists, because blender did not work with plain strings
         # or list of strings of size 1.
         return self.blender.rank([prompt], [texts], return_scores=True)[0]
+
+
+@RewardScorerRegistry.register("armo")
+class ArmoRewardScorer(RewardScorerBase):
+    def __init__(self, device: str = "cpu", gpu_ids: list[int] = []):
+        model_id = "RLHFlow/ArmoRM-Llama3-8B-v0.1"
+        if gpu_ids:
+            assert device == "cuda"
+        self.model = AutoModelForSequenceClassification.from_pretrained(
+            model_id,
+            device_map={"": gpu_ids},
+            trust_remote_code=True,
+            torch_dtype=torch.bfloat16,
+            max_length=2048,
+            truncation=True,
+            attn_implementation="flash_attention_2",
+        )
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            model_id,
+            use_fast=True,
+        )
+
+    def get_reward_score(self, prompt: str, texts: list[str]) -> list[float]:
+        res = []
+        for text in texts:
+            messages = [
+                {"role": "user", "content": prompt},
+                {"role": "assistant", "content": text},
+            ]
+            input_ids = self.tokenizer.apply_chat_template(
+                messages,
+                return_tensors="pt",
+                padding=True,
+                truncation=True,
+                max_length=2048,
+            ).to(self.model.device)
+            with torch.no_grad():
+                output = self.model(input_ids)
+                score = output.score.float().item()
+            res.append(score)
+        return res
