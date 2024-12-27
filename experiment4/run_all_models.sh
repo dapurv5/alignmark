@@ -27,7 +27,7 @@ list_of_models=("meta-llama/Llama-3.1-8B-Instruct" \
 
 for model in "${list_of_models[@]}"; do
     echo "Downloading model: $model"
-    bash utils/download_model.py $model
+    python utils/download_model.py $model
 done
 
 for model in "${list_of_models[@]}"; do
@@ -41,6 +41,6 @@ done
 
 for model in "${list_of_models[@]}"; do
     echo "Cleaning model: $model"
-    bash utils/clean_model.py $model
+    python utils/clean_model.py $model
 done
 
