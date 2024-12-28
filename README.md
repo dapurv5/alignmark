@@ -20,6 +20,7 @@ pip install git+https://github.com/lucadiliello/bleurt-pytorch.git
 bash experiment1/sweep_maryland.sh
 bash experiment1/sweep_openai.sh
 bash experiment1/sweep_maryland_beam.sh
+bash experiment1/sweep_openai_beam.sh
 
 # Run reward scorer
 bash experiment1/run_reward_scorer.sh
