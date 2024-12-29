@@ -5,12 +5,12 @@ set -o errexit -o xtrace -o nounset
 # Values to be set by user
 ###################
 CLUSTER="AWS"  # "AWS" or "WULVER"
-EXP_NAME=${1:-"exp_001_sweep_temp_hhrlhf_beam"}
+EXP_NAME=${1:-"exp_002_sweep_temp_truthfulqa_beam"}
 NUM_GPUS_PER_PROCESS=1
-NUM_PROCESSES=4
+NUM_PROCESSES=8
 REWARD_MODEL="armo"  # llm-blender/PairRM | armo
 REWARD_MODEL_SHORTFORM="armo"  # blender | armo
-TEXT_FIELD="prompt"
+TEXT_FIELD="question"
 ###################
 
 if [ "$CLUSTER" == "WULVER" ]; then

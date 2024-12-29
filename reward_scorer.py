@@ -19,6 +19,9 @@ REMOVE_TOKENS = ["&quot;", "&quot", "\n\n.\n\n"]
 
 
 class RewardScorerBase:
+    def __init__(self, text_field: str):
+        self.text_field = text_field
+
     @abstractmethod
     def get_reward_score(self, prompt: str, texts: list[str]) -> list[float]:
         raise NotImplementedError("Subclasses must implement this method")
@@ -52,14 +55,14 @@ class RewardScorerBase:
     def _process_single_line(self, line: str) -> dict:
         """Process a single line from input file and compute reward scores."""
         data = json.loads(line)
-        data = cleanup(data, ROLE_TAGS, REMOVE_TOKENS, "prompt")
+        data = cleanup(data, ROLE_TAGS, REMOVE_TOKENS, self.text_field)
 
         # Collect all texts that need scoring
         texts_to_score_map = self._collect_texts_to_score(data)
 
         # Get scores for all texts at once
         numerical_scores = self.get_reward_score(
-            data["prompt"], list(texts_to_score_map.keys())
+            data[self.text_field], list(texts_to_score_map.keys())
         )
 
         # Map scores back to texts
@@ -134,8 +137,8 @@ class RewardScorerRegistry:
 
 @RewardScorerRegistry.register("llm-blender/PairRM")
 class BlenderRewardScorer(RewardScorerBase):
-    def __init__(self, device: str = "cpu", gpu_ids: list[int] = []):
-        super().__init__()
+    def __init__(self, text_field: str, device: str = "cpu", gpu_ids: list[int] = []):
+        super().__init__(text_field)
         reward_model = "llm-blender/PairRM"
         logger.info(f"Loading reward model: {reward_model}")
         self.blender = llm_blender.Blender()
@@ -154,7 +157,8 @@ class BlenderRewardScorer(RewardScorerBase):
 
 @RewardScorerRegistry.register("armo")
 class ArmoRewardScorer(RewardScorerBase):
-    def __init__(self, device: str = "cpu", gpu_ids: list[int] = []):
+    def __init__(self, text_field: str, device: str = "cpu", gpu_ids: list[int] = []):
+        super().__init__(text_field)
         model_id = "RLHFlow/ArmoRM-Llama3-8B-v0.1"
         if gpu_ids:
             assert device == "cuda", len(gpu_ids) == 1

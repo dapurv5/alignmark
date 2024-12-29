@@ -24,6 +24,7 @@ def run_reward_scorer(
     num_gpus_per_process: int = 0,
     gpu_start_id: int = 0,
     debug_mode: bool = False,
+    text_field: str = "prompt",
 ):
 
     def process_single_file(
@@ -37,7 +38,9 @@ def run_reward_scorer(
         output_dir = os.path.dirname(output_path)
 
         if num_processes == 1 and num_gpus_per_process == 0:
-            scorer = RewardScorerRegistry.get(reward_model)(device="cpu")
+            scorer = RewardScorerRegistry.get(reward_model)(
+                text_field=text_field, device="cpu"
+            )
             scorer.compute_rewards(input_path, output_path)
             return
 
@@ -150,6 +153,7 @@ def process_func(
     reward_model: str,
     output_dir: str,
     device_to_use: str,
+    text_field: str,
 ):
     try:
         process_id = os.getpid()
@@ -163,7 +167,7 @@ def process_func(
 
         print(f"Process {process_id}: Loading model {reward_model}")
         scorer = RewardScorerRegistry.get(reward_model)(
-            device=device_to_use, gpu_ids=gpu_ids_to_use
+            text_field=text_field, device=device_to_use, gpu_ids=gpu_ids_to_use
         )
         for input_file in files:
             logger.info(f"Process {process_id}: Processing {input_file}")

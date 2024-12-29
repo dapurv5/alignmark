@@ -13,35 +13,46 @@ from bleurt_pytorch import (
 from openai import OpenAI
 from tqdm import tqdm
 
-from cleanup_utils import remove_prompt_from_response
+# from cleanup_utils import remove_prompt_from_response
+from cleanup_utils import cleanup
 
-nltk.download("punkt")
-nltk.download("punkt_tab")
+# nltk.download("punkt")
+# nltk.download("punkt_tab")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+ROLE_TAGS = ["\n\nHuman:", "\n\nAssistant:"]
+REMOVE_TOKENS = [
+    "&quot;",
+    "&quot",
+    "\n\n.\n\n",
+    "# Answer\n",
+    "### Response:\n\n",
+    "# AI \n",
+]
 
-def cleanup(data: dict):
-    # Remove the question from the generated text
-    data = remove_prompt_from_response(data, "question", "watermarked_text")
-    data = remove_prompt_from_response(data, "question", "unwatermarked_text")
 
-    def get_first_sentence(text):
-        ans = ""
-        if "\n" in text:
-            text_first_line = text.split("\n")[0]
-            if len(text) < 2:
-                ans = text
-            else:
-                ans = text_first_line
-        else:
-            sentences = nltk.sent_tokenize(text)
-            ans = sentences[0] if sentences else text
-        return ans
+# def cleanup(data: dict):
+#     # Remove the question from the generated text
+#     data = remove_prompt_from_response(data, "question", "watermarked_text")
+#     data = remove_prompt_from_response(data, "question", "unwatermarked_text")
 
-    data["watermarked_text"] = get_first_sentence(data["watermarked_text"])
-    data["unwatermarked_text"] = get_first_sentence(data["unwatermarked_text"])
+#     def get_first_sentence(text):
+#         ans = ""
+#         if "\n" in text:
+#             text_first_line = text.split("\n")[0]
+#             if len(text) < 2:
+#                 ans = text
+#             else:
+#                 ans = text_first_line
+#         else:
+#             sentences = nltk.sent_tokenize(text)
+#             ans = sentences[0] if sentences else text
+#         return ans
+
+#     data["watermarked_text"] = get_first_sentence(data["watermarked_text"])
+#     data["unwatermarked_text"] = get_first_sentence(data["unwatermarked_text"])
 
 
 class TruthfulnessScorerBase:
@@ -74,7 +85,7 @@ class TruthfulnessScorerBase:
             batch = self._initialize_batch()
             for line in tqdm(input_fp):
                 data = json.loads(line)
-                cleanup(data)
+                cleanup(data, ROLE_TAGS, REMOVE_TOKENS, "question")
                 self._add_to_batch(batch, data)
                 if len(batch["watermarked_text_batch"]) == self.batch_size:
                     self._process_batch(batch, output_fp)
