@@ -13,7 +13,7 @@ from bleurt_pytorch import (
 from openai import OpenAI
 from tqdm import tqdm
 
-from cleanup_utils import remove_question_from_response
+from cleanup_utils import remove_prompt_from_response
 
 nltk.download("punkt")
 nltk.download("punkt_tab")
@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 
 def cleanup(data: dict):
     # Remove the question from the generated text
-    data = remove_question_from_response(data, "question", "watermarked_text")
-    data = remove_question_from_response(data, "question", "unwatermarked_text")
+    data = remove_prompt_from_response(data, "question", "watermarked_text")
+    data = remove_prompt_from_response(data, "question", "unwatermarked_text")
 
     def get_first_sentence(text):
         ans = ""
@@ -76,50 +76,89 @@ class TruthfulnessScorerBase:
                 data = json.loads(line)
                 cleanup(data)
                 self._add_to_batch(batch, data)
-                if len(batch["watermarked_texts"]) == self.batch_size:
+                if len(batch["watermarked_text_batch"]) == self.batch_size:
                     self._process_batch(batch, output_fp)
                     batch = self._initialize_batch()
             # Handle the last batch
-            if batch["watermarked_texts"]:
+            if batch["watermarked_text_batch"]:
                 self._process_batch(batch, output_fp)
 
     def _process_batch(self, batch, output_fp):
-        wm_scores = self.get_truthfulness_score(
-            batch["questions"],
-            batch["watermarked_texts"],
-            batch["true_ref_answers"],
-            batch["false_ref_answers"],
+        # Process each field type (single texts and text lists)
+        self._process_text_fields(batch)
+
+        # Write results to output file
+        self._write_batch_results(batch, output_fp)
+
+    def _process_text_fields(self, batch):
+        fields = [
+            "watermarked_text",
+            "unwatermarked_text",
+            "watermarked_texts",
+            "unwatermarked_texts",
+        ]
+
+        for field in fields:
+            if not (f"{field}_batch" in batch and batch[f"{field}_batch"]):
+                continue
+
+            if isinstance(batch[f"{field}_batch"][0], list):
+                self._process_text_list(batch, field)
+            else:
+                self._process_single_text(batch, field)
+
+    def _process_text_list(self, batch, field):
+        for idx, field_batch in enumerate(batch[f"{field}_batch"]):
+            scores = self.get_truthfulness_score(
+                [batch["question_batch"][idx]] * len(field_batch),
+                field_batch,
+                [batch["correct_answers_batch"][idx]] * len(field_batch),
+                [batch["incorrect_answers_batch"][idx]] * len(field_batch),
+            )
+            batch["data_batch"][idx][f"{field}_truthfulness_score"] = scores
+
+    def _process_single_text(self, batch, field):
+        scores = self.get_truthfulness_score(
+            batch["question_batch"],
+            batch[f"{field}_batch"],
+            batch["correct_answers_batch"],
+            batch["incorrect_answers_batch"],
         )
-        uwm_scores = self.get_truthfulness_score(
-            batch["questions"],
-            batch["unwatermarked_texts"],
-            batch["true_ref_answers"],
-            batch["false_ref_answers"],
-        )
-        for data, wm_score, uwm_score in zip(batch["data"], wm_scores, uwm_scores):
-            data["watermarked_truthfulness_score"] = float(wm_score)
-            data["unwatermarked_truthfulness_score"] = float(uwm_score)
+        for data, score in zip(batch["data_batch"], scores):
+            data[f"{field}_truthfulness_score"] = float(score)
+
+    def _write_batch_results(self, batch, output_fp):
+        for data in batch["data_batch"]:
             json.dump(data, output_fp)
             output_fp.write("\n")
         output_fp.flush()
 
     def _initialize_batch(self):
         return {
-            "questions": [],
-            "watermarked_texts": [],
-            "unwatermarked_texts": [],
-            "true_ref_answers": [],
-            "false_ref_answers": [],
-            "data": [],
+            "question_batch": [],
+            "watermarked_text_batch": [],
+            "unwatermarked_text_batch": [],
+            "correct_answers_batch": [],
+            "incorrect_answers_batch": [],
+            "data_batch": [],
+            "watermarked_texts_batch": [],
+            "unwatermarked_texts_batch": [],
         }
 
     def _add_to_batch(self, batch, data):
-        batch["questions"].append(data["question"])
-        batch["watermarked_texts"].append(data["watermarked_text"])
-        batch["unwatermarked_texts"].append(data["unwatermarked_text"])
-        batch["true_ref_answers"].append(data["correct_answers"])
-        batch["false_ref_answers"].append(data["incorrect_answers"])
-        batch["data"].append(data)
+        fields = [
+            "question",
+            "watermarked_text",
+            "unwatermarked_text",
+            "correct_answers",
+            "incorrect_answers",
+            "watermarked_texts",
+            "unwatermarked_texts",
+        ]
+        for field in fields:
+            if field in data:
+                batch[f"{field}_batch"].append(data[field])
+        batch["data_batch"].append(data)
 
 
 class TruthfulnessScorerRegistry:
@@ -236,10 +275,15 @@ class OpenaiTruthfulnessScorer(TruthfulnessScorerBase):
             return gpt4_evaluation.get("truthfulness_score", 0)
 
         with ThreadPoolExecutor(max_workers=self.batch_size) as executor:
-            futures = [
-                executor.submit(process_single_evaluation, args)
-                for args in zip(questions, texts, true_ref_answers, false_ref_answers)
-            ]
+            futures = {
+                executor.submit(process_single_evaluation, args): idx
+                for idx, args in enumerate(
+                    zip(questions, texts, true_ref_answers, false_ref_answers)
+                )
+            }
+            results = [None] * len(questions)
             for future in as_completed(futures):
-                scores.append(future.result())
+                idx = futures[future]
+                results[idx] = future.result()
+            scores.extend(results)
         return scores
