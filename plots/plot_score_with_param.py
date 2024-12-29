@@ -8,6 +8,7 @@ import pub_ready_plots as prp
 from fire import Fire
 
 from plots.plot_utils import (
+    get_color,
     get_short_model_name,
     get_short_watermark_name,
     process_files,
@@ -46,7 +47,7 @@ def plot_scores(
                     [np.mean(u) for u in unwatermarked_scores]
                 )
         for dataset_name in unwm_means:
-            color = next(colors)
+            # color = next(colors)
             marker = next(markers)
             # Now average over all seeds
             unwm_means_avg = np.mean(list(unwm_means[dataset_name].values()), axis=0)
@@ -63,8 +64,8 @@ def plot_scores(
                 marker=marker,
                 markersize=2,
                 markerfacecolor="none",
-                markeredgecolor=color,
-                color=color,
+                markeredgecolor=get_color("unwatermarked"),
+                color=get_color("unwatermarked"),
                 alpha=0.7,
                 markeredgewidth=1,
                 linestyle="dashed",
@@ -81,7 +82,7 @@ def plot_scores(
             wm_stds = np.std(list(wm_means.values()), axis=0)
             wm_means_avg = wm_means_avg.squeeze()
             wm_stds = wm_stds.squeeze()
-            color = next(colors)
+            # color = next(colors)
             marker = next(markers)
             # Plot watermarked scores
             axs.plot(
@@ -90,9 +91,9 @@ def plot_scores(
                 label=f"{get_short_watermark_name(watermark_type)}",
                 marker=marker,
                 markersize=2,
-                markerfacecolor=color,
-                markeredgecolor=color,
-                color=color,
+                markerfacecolor=get_color(watermark_type),
+                markeredgecolor=get_color(watermark_type),
+                color=get_color(watermark_type),
                 alpha=0.7,
                 markeredgewidth=1,
                 linestyle="-",

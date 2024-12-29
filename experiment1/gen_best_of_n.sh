@@ -3,8 +3,9 @@
 set -o errexit -o xtrace -o nounset
 
 CLUSTER="LOCAL"  # "AWS" or "WULVER"
-EXP_NAME=${1:-"exp_001_sweep_temp_hhrlhf_beam_rewards_armo"}
-TGT_DIR_NAME=${2:-"exp_001_sweep_temp_hhrlhf_beam_rewards_armo_BoN"}
+N=${1:-2}
+EXP_NAME=${2:-"exp_001_sweep_temp_hhrlhf_beam_rewards_armo"}
+TGT_DIR_NAME=${3:-"exp_001_sweep_temp_hhrlhf_beam_rewards_armo_BoN"}
 if [ "$CLUSTER" = "WULVER" ]; then
     EXP_DIR_PREFIX="/project/phan/av787/projs/watermarking-v1/outputs"
 elif [ "$CLUSTER" = "AWS" ]; then
@@ -23,5 +24,5 @@ python generate_best_of_n.py \
     --src_fields "watermarked_texts" \
     --tgt_score_field "watermarked_text_reward_score" \
     --tgt_fields "watermarked_text" \
-    --n 2 \
+    --n $N \
     --filename_pattern "*_rewards.jsonl"

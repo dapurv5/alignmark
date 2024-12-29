@@ -140,4 +140,35 @@ def get_short_watermark_name(watermark_type: str) -> str:
     return {
         "maryland": "KGW (Distort)",
         "openai": "Gumbel (Dist-Free)",
+        "maryland-BoN-2": "KGW (BoN-2)",
+        "openai-BoN-2": "Gumbel (BoN-2)",
+        "maryland-BoN-3": "KGW (BoN-3)",
+        "openai-BoN-3": "Gumbel (BoN-3)",
+        "maryland-BoN-4": "KGW (BoN-4)",
+        "openai-BoN-4": "Gumbel (BoN-4)",
     }.get(watermark_type, watermark_type)
+
+
+def get_color(watermark_type: str) -> str:
+    # Maryland family - Orange shades (warmer, more saturated)
+    if watermark_type == "maryland":
+        return "#E66101"  # Deep orange
+    elif watermark_type == "maryland-BoN-2":
+        return "#FDB863"  # Light orange
+    elif watermark_type == "maryland-BoN-3":
+        return "#F4A582"  # Pale orange
+    elif watermark_type == "maryland-BoN-4":
+        return "#FDAE61"  # Medium orange
+
+    # OpenAI family - Green shades (more blue-tinted for better distinction)
+    elif watermark_type == "openai":
+        return "#1B7837"  # Deep green
+    elif watermark_type == "openai-BoN-2":
+        return "#63B179"  # Medium green
+    elif watermark_type == "openai-BoN-3":
+        return "#A6DBA0"  # Light green
+    elif watermark_type == "openai-BoN-4":
+        return "#4DAF4A"  # Bright green
+
+    else:
+        return "#1f77b4"  # Blue
