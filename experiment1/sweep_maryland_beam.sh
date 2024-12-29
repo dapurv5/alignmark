@@ -12,7 +12,7 @@ set -o errexit -o xtrace -o nounset
 ###################
 CLUSTER="AWS"  # "AWS" or "WULVER"
 MODEL_NAME=${1:-"meta-llama/Llama-3.1-8B-Instruct"}
-EXP_NAME=${2:-"exp_001_sweep_temp_hhrlhf_beam"}
+EXP_NAME=${2:-"exp_005_hhrlhf_beam"}
 # Choose number of GPUs to be exactly divisible by DATASET_SIZE
 NUM_GPUS_AVAILABLE=4  # Don't set > 4 for now, because it hangs after a while for unknown reasons
 DATASET_SIZE=1024

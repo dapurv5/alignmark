@@ -13,14 +13,13 @@ set -o errexit -o xtrace -o nounset
 ###################
 CLUSTER="AWS"  # "AWS" or "WULVER"
 MODEL_NAME=${1:-"meta-llama/Llama-3.1-8B-Instruct"}
-EXP_NAME=${2:-"exp_004_overrefusal_beam"}
+EXP_NAME=${2:-"exp_005_tulu_70b_beam"}
 # Choose number of GPUs to be exactly divisible by DATASET_SIZE
 NUM_GPUS_AVAILABLE=4  # Don't set > 4 for now, because it hangs after a while for unknown reasons
 DATASET_SIZE=320000  # The actual dataset size is 334k
 BATCH_SIZE=8  # Use batch size 8 for 40GB GPU and also for 80GB GPU to keep it full utilized
 SEED=42
 CLEAN_MODEL_AFTER_RUN=${CLEAN_MODEL_AFTER_RUN:-"false"}
-DATASET_PATH="$HOME/SageMaker/safety-data.jsonl"
 # Choose these values based on the GPU memory available
 # --num_wm_generations_per_prompt 4 \  # 4 for 40GB, 8 for 80GB
 # --num_unwm_generations_per_prompt 2 \  # 2 for 40GB, 4 for 80GB
@@ -44,10 +43,8 @@ DATASET_PATH="$HOME/SageMaker/safety-data.jsonl"
 python utils/download_model.py $MODEL_NAME
 if [ "$CLUSTER" == "WULVER" ]; then
     EXP_DIR_PREFIX="/project/phan/av787/projs/watermarking-v1/outputs"
-    DATASET_PATH="$HOME/SageMaker/safety-data.jsonl"
 else
     EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1"
-    DATASET_PATH="$HOME/safety-data.jsonl"
 fi
 
 
