@@ -155,7 +155,7 @@ class BlenderRewardScorer(RewardScorerBase):
         return self.blender.rank([prompt], [texts], return_scores=True)[0]
 
 
-@RewardScorerRegistry.register("armo")
+@RewardScorerRegistry.register("RLHFlow/ArmoRM-Llama3-8B-v0.1")
 class ArmoRewardScorer(RewardScorerBase):
     def __init__(self, text_field: str, device: str = "cpu", gpu_ids: list[int] = []):
         super().__init__(text_field)

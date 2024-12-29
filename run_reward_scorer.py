@@ -30,6 +30,7 @@ def run_reward_scorer(
     def process_single_file(
         input_path: str,
         output_path: str,
+        text_field: str,
         num_processes: int,
         num_gpus_per_process: int,
         gpu_start_id: int,
@@ -58,6 +59,7 @@ def run_reward_scorer(
     def process_file_in_parallel(
         input_path: str,
         output_dir: str,
+        text_field: str,
         num_processes: int,
         num_gpus_per_process: int,
         gpu_start_id: int,
@@ -84,6 +86,7 @@ def run_reward_scorer(
             # Process temporary files in parallel
             compute_parallel(
                 temp_files,
+                text_field,
                 num_processes,
                 num_gpus_per_process,
                 reward_model,
@@ -101,6 +104,7 @@ def run_reward_scorer(
     def process_directory(
         input_path: str,
         output_path: str,
+        text_field: str,
         num_processes: int,
         num_gpus_per_process: int,
         gpu_start_id: int,
@@ -119,6 +123,7 @@ def run_reward_scorer(
 
         compute_parallel(
             filelist,
+            text_field,
             num_processes,
             num_gpus_per_process,
             reward_model,
@@ -132,6 +137,7 @@ def run_reward_scorer(
         process_single_file(
             input_path,
             output_path,
+            text_field,
             num_processes,
             num_gpus_per_process,
             gpu_start_id,
@@ -140,6 +146,7 @@ def run_reward_scorer(
         process_directory(
             input_path,
             output_path,
+            text_field,
             num_processes,
             num_gpus_per_process,
             gpu_start_id,
@@ -149,11 +156,11 @@ def run_reward_scorer(
 
 def process_func(
     files,
+    text_field,
     gpu_ids_to_use: list[int],
     reward_model: str,
     output_dir: str,
     device_to_use: str,
-    text_field: str,
 ):
     try:
         process_id = os.getpid()
@@ -194,6 +201,7 @@ def process_func(
 
 def compute_parallel(
     filelist,
+    text_field,
     num_processes,
     num_gpus_per_process,
     reward_model,
@@ -214,6 +222,7 @@ def compute_parallel(
             ]
             process_func(
                 files_to_process_for_this_process,
+                text_field,
                 gpu_ids_for_this_process,
                 reward_model,
                 output_dir,
@@ -233,6 +242,7 @@ def compute_parallel(
                 target=process_func,
                 args=(
                     files_to_process_for_this_process,
+                    text_field,
                     gpu_ids_for_this_process,
                     reward_model,
                     output_dir,
