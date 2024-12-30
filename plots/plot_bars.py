@@ -1,18 +1,9 @@
-import json
 from pathlib import Path
 
 import fire
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-
-
-def load_and_process_jsonl(filepath):
-    data = []
-    with open(filepath, "r") as f:
-        for line in f:
-            data.append(json.loads(line))
-    return data
+from plot_utils import get_color, get_short_watermark_name, parse_filename, read_jsonl
 
 
 def process_categories(category_str):
@@ -55,8 +46,9 @@ def calculate_category_percentages(data):
 
 
 def plot_safety_comparison(all_models_data, output_path):
-    categories = list(list(all_models_data.values())[0]["openai"].keys())
+    categories = list(list(all_models_data.values())[0]["unwatermarked"].keys())
     models = list(all_models_data.keys())
+    watermark_types = list(all_models_data.values())[0].keys()
 
     import pub_ready_plots as prp
 
@@ -72,48 +64,54 @@ def plot_safety_comparison(all_models_data, output_path):
 
         fig.suptitle(
             "Change in Number of Unsafe Responses with Watermarking",
-            fontsize=8,
-            y=0.95,
+            fontsize=10,
+            y=0.97,
             x=0.55,
         )
 
         bar_width = 0.35
-        r1 = np.arange(len(categories))
-        r2 = [x + bar_width for x in r1]
+        # # Sort all_models_data by model size obtained by parsing the model name e.g. Qwen2.5-72B-Instruct -> 72B, Qwen2.5-14B -> 14B
+        # all_models_data = dict(
+        #     sorted(
+        #         all_models_data.items(),
+        #         key=lambda x: float(
+        #             "".join(
+        #                 c
+        #                 for c in next(p for p in x[0].split("-") if "B" in p)
+        #                 if c.isdigit() or c == "."
+        #             )
+        #         ),
+        #     )
+        # )
 
         for idx, (model_name, model_data) in enumerate(all_models_data.items()):
             ax = axes[idx]
 
-            # Calculate absolute increases
-            openai_increases = []
-            maryland_increases = []
-            for cat in categories:
-                baseline = model_data["unwatermarked"][cat]
-                openai_inc = model_data["openai"][cat] - baseline
-                maryland_inc = model_data["maryland"][cat] - baseline
-                openai_increases.append(openai_inc)
-                maryland_increases.append(maryland_inc)
+            # Calculate absolute increases for each watermark type
+            increases = {}
+            for watermark_type in watermark_types:
+                if watermark_type != "unwatermarked":
+                    increases[watermark_type] = []
+                    for cat in categories:
+                        baseline = model_data["unwatermarked"][cat]
+                        inc = model_data[watermark_type][cat] - baseline
+                        increases[watermark_type].append(inc)
 
             # Plot bars for absolute increases
-            ax.barh(
-                r1,
-                openai_increases,
-                bar_width,
-                label="Gumbel (Dist-Free)",
-                alpha=0.7,
-                color="#2ca02c",
-            )
-            ax.barh(
-                r2,
-                maryland_increases,
-                bar_width,
-                label="KGW (Distort)",
-                alpha=0.7,
-                color="#ff7f0e",
-            )
+            for i, watermark_type in enumerate(watermark_types):
+                if watermark_type != "unwatermarked":
+                    r = [x + i * bar_width for x in np.arange(len(categories))]
+                    ax.barh(
+                        r,
+                        increases[watermark_type],
+                        bar_width,
+                        label=get_short_watermark_name(watermark_type),
+                        alpha=0.7,
+                        color=get_color(watermark_type),
+                    )
             ax.set_xlabel(f"{model_name}", fontsize=8, labelpad=5)
             if idx == 0:
-                ax.set_ylabel("Safety Categories", fontsize=8)
+                ax.set_ylabel("Safety Categories", fontsize=12)
                 ax.set_yticks([r + bar_width / 2 for r in range(len(categories))])
                 ax.set_yticklabels(categories, ha="right", fontsize=6)
             else:
@@ -136,24 +134,13 @@ def plot_safety_comparison(all_models_data, output_path):
 def group_files_by_model(files):
     files_dict = {}
     for file in files:
-        model_name = extract_model_name(file)
+        filename = file.name
+        parsed_info = parse_filename(filename)
+        model_name = parsed_info["model_name"]
         if model_name not in files_dict:
             files_dict[model_name] = []
         files_dict[model_name].append(file)
     return files_dict.values()
-
-
-def extract_model_name(filepath):
-    filename = str(filepath)
-    if "Meta-Llama" in filename:
-        return "LLaMA-8B-Inst"
-    elif "Mistral" in filename:
-        return "Mistral-7B-Inst"
-    elif "gemma" in filename:
-        return "Gemma-2-9B-Inst"
-    elif "Phi-3" in filename:
-        return "Phi-3-Mini-Inst"
-    return "Unknown"
 
 
 def main(input_dir: str, output_dir: str = None):
@@ -171,22 +158,34 @@ def main(input_dir: str, output_dir: str = None):
     output_path.mkdir(parents=True, exist_ok=True)
 
     # Get all safety score files
-    files = input_path.glob("*safety_scores*.jsonl")
+    files = list(input_path.glob("*safety_scores*.jsonl"))
 
     # Create a dictionary to store data for all models
     all_models_data = {}
+    all_watermark_types = set()
+    for file in files:
+        filename = file.name
+        parsed_info = parse_filename(filename)
+        all_watermark_types.add(parsed_info["watermark_type"])
 
     for model_files in group_files_by_model(files):
-        model_name = extract_model_name(model_files[0])
-        model_data = {"openai": {}, "maryland": {}, "unwatermarked": {}}
+        parsed_info = parse_filename(model_files[0].name)
+        model_name = parsed_info["model_name"]
+        model_data_by_wm = {wm: {} for wm in all_watermark_types}
+        model_data_by_wm["unwatermarked"] = {}
 
         for filepath in model_files:
-            data = load_and_process_jsonl(filepath)
+            data = read_jsonl(filepath)
+            filename = filepath.name
+            parsed_info = parse_filename(filename)
+            watermark_type = parsed_info["watermark_type"]
+            # Each model should only have one file per watermark type (in other words no sweep across temperature, etc)
+            assert not model_data_by_wm[watermark_type]
+            model_data_by_wm[watermark_type] = calculate_category_percentages(data)
 
-            if "openai" in str(filepath):
-                model_data["openai"] = calculate_category_percentages(data)
-                # Process unwatermarked data from the same file
-                model_data["unwatermarked"] = calculate_category_percentages(
+            # Only collect unwatermarked data from first watermark type's file
+            if not model_data_by_wm["unwatermarked"]:
+                model_data_by_wm["unwatermarked"] = calculate_category_percentages(
                     [
                         {
                             "watermarked_unsafe_category": d[
@@ -196,10 +195,8 @@ def main(input_dir: str, output_dir: str = None):
                         for d in data
                     ]
                 )
-            elif "maryland" in str(filepath):
-                model_data["maryland"] = calculate_category_percentages(data)
 
-        all_models_data[model_name] = model_data
+        all_models_data[model_name] = model_data_by_wm
 
     output_file = output_path / "safety_comparison_all_models.png"
     plot_safety_comparison(all_models_data, output_file)
