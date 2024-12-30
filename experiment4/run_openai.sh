@@ -46,10 +46,10 @@ python utils/download_model.py $MODEL_NAME
 
 if [ "$CLUSTER" == "WULVER" ]; then
     EXP_DIR_PREFIX="/project/phan/av787/projs/watermarking-v1/outputs"
-    DATASET_PATH="$HOME/SageMaker/refusal-data.jsonl"
+    DATASET_PATH="$HOME/refusal-data.jsonl"
 else
     EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1"
-    DATASET_PATH="$HOME/refusal-data.jsonl"
+    DATASET_PATH="$HOME/SageMaker/refusal-data.jsonl"
 fi
 
 

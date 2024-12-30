@@ -20,7 +20,7 @@ DATASET_SIZE=3800  # The actual dataset size is 3819
 BATCH_SIZE=8  # Use batch size 8 for 40GB GPU and also for 80GB GPU to keep it full utilized
 SEED=42
 CLEAN_MODEL_AFTER_RUN=${CLEAN_MODEL_AFTER_RUN:-"false"}
-DATASET_PATH="$HOME/safety-data.jsonl"
+DATASET_PATH="$HOME/SageMaker/safety-data.jsonl"
 # Choose these values based on the GPU memory available
 # --num_wm_generations_per_prompt 4 \  # 4 for 40GB, 8 for 80GB
 # --num_unwm_generations_per_prompt 2 \  # 2 for 40GB, 4 for 80GB
@@ -45,10 +45,10 @@ python utils/download_model.py $MODEL_NAME
 
 if [ "$CLUSTER" == "WULVER" ]; then
     EXP_DIR_PREFIX="/project/phan/av787/projs/watermarking-v1/outputs"
-    DATASET_PATH="$HOME/SageMaker/safety-data.jsonl"
+    DATASET_PATH="$HOME/safety-data.jsonl"
 else
     EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1"
-    DATASET_PATH="$HOME/safety-data.jsonl"
+    DATASET_PATH="$HOME/SageMaker/safety-data.jsonl"
 fi
 
 
