@@ -99,8 +99,8 @@ def plot_scores(
                 linestyle="-",
             )
 
-        axs.set_xlabel(f"{param_name_to_plot} →", fontsize=5)
-        axs.set_ylabel(f"{score_name.capitalize()} Score", fontsize=5, labelpad=3)
+        axs.set_xlabel(f"{param_name_to_plot.capitalize()} →", fontsize=7)
+        axs.set_ylabel(f"{score_name.capitalize()} Score", fontsize=7, labelpad=3)
         axs.tick_params(axis="both", which="major", labelsize=5)
         axs.set_title(
             f"{score_name.capitalize()} Scores with Temperature for {get_short_model_name(model_name_to_plot)}",
