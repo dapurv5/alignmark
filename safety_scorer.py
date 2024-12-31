@@ -9,12 +9,7 @@ from openai import OpenAI
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from cleanup_utils import (
-    pick_first_k_blocks,
-    prune_multiple_turns,
-    remove_prompt_from_response,
-    remove_role_tags,
-)
+from cleanup_utils import cleanup
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,23 +19,23 @@ INSTRUCTION_TAGS = ["### Instruction:", "## Instruction:"]
 RESPONSE_TAGS = ["### Response:", "## Response:"]
 
 
-def cleanup(data: dict):
-    # Remove the prompt from the generated text
-    data = remove_prompt_from_response(data, "prompt", "watermarked_text")
-    data = remove_prompt_from_response(data, "prompt", "unwatermarked_text")
-    # Remove the role tags from the prompt
-    data = remove_role_tags(data, INSTRUCTION_TAGS, "prompt")
-    data = remove_role_tags(data, RESPONSE_TAGS, "prompt")
-    # Prune multiple turns
-    for role_tag in INSTRUCTION_TAGS + RESPONSE_TAGS:
-        data = prune_multiple_turns(data, "watermarked_text", role_tag)
-        data = prune_multiple_turns(data, "unwatermarked_text", role_tag)
-    # Miscellaneous cleanup
-    data = pick_first_k_blocks(data, "watermarked_text", 2)
-    data = pick_first_k_blocks(data, "unwatermarked_text", 2)
-    data["watermarked_text"] = data["watermarked_text"].replace("\n", " ")
-    data["unwatermarked_text"] = data["unwatermarked_text"].replace("\n", " ")
-    return data
+# def cleanup(data: dict):
+#     # Remove the prompt from the generated text
+#     data = remove_prompt_from_response(data, "prompt", "watermarked_text")
+#     data = remove_prompt_from_response(data, "prompt", "unwatermarked_text")
+#     # Remove the role tags from the prompt
+#     data = remove_role_tags(data, INSTRUCTION_TAGS, "prompt")
+#     data = remove_role_tags(data, RESPONSE_TAGS, "prompt")
+#     # Prune multiple turns
+#     for role_tag in INSTRUCTION_TAGS + RESPONSE_TAGS:
+#         data = prune_multiple_turns(data, "watermarked_text", role_tag)
+#         data = prune_multiple_turns(data, "unwatermarked_text", role_tag)
+#     # Miscellaneous cleanup
+#     data = pick_first_k_blocks(data, "watermarked_text", 2)
+#     data = pick_first_k_blocks(data, "unwatermarked_text", 2)
+#     data["watermarked_text"] = data["watermarked_text"].replace("\n", " ")
+#     data["unwatermarked_text"] = data["unwatermarked_text"].replace("\n", " ")
+#     return data
 
 
 class SafetyScorerBase:
@@ -71,7 +66,7 @@ class SafetyScorerBase:
             batch = self._initialize_batch()
             for idx, line in tqdm(enumerate(input_fp)):
                 data = json.loads(line)
-                cleanup(data)
+                cleanup(data, INSTRUCTION_TAGS + RESPONSE_TAGS, [], "prompt")
                 self._add_to_batch(batch, data)
                 if len(batch["watermarked_texts"]) == self.batch_size:
                     self._process_batch(batch, output_fp)
@@ -81,42 +76,79 @@ class SafetyScorerBase:
                 self._process_batch(batch, output_fp)
 
     def _process_batch(self, batch, output_fp):
-        wm_safety_evals = self.get_safety_score(
-            batch["prompts"],
-            batch["watermarked_texts"],
-        )
-        uwm_safety_evals = self.get_safety_score(
-            batch["prompts"],
-            batch["unwatermarked_texts"],
-        )
-        for data, wm_eval, uwm_eval in zip(
-            batch["data"], wm_safety_evals, uwm_safety_evals
-        ):
-            data["watermarked_safety_eval"] = wm_eval["safety_eval"]
-            data["unwatermarked_safety_eval"] = uwm_eval["safety_eval"]
-            data["watermarked_unsafe_category"] = (
-                wm_eval["unsafe_category"] if "unsafe_category" in wm_eval else ""
+        # Process each field type (single texts and text lists)
+        self._process_text_fields(batch)
+
+        # Write results to output file
+        self._write_batch_results(batch, output_fp)
+
+    def _process_text_fields(self, batch):
+        fields = [
+            "watermarked_text",
+            "unwatermarked_text",
+            "watermarked_texts",
+            "unwatermarked_texts",
+        ]
+
+        for field in fields:
+            if not (f"{field}_batch" in batch and batch[f"{field}_batch"]):
+                continue
+
+            if isinstance(batch[f"{field}_batch"][0], list):
+                self._process_text_list(batch, field)
+            else:
+                self._process_single_text(batch, field)
+
+    def _process_text_list(self, batch, field):
+        for idx, field_batch in enumerate(batch[f"{field}_batch"]):
+            safety_evals = self.get_safety_score(
+                [batch["prompt_batch"][idx]] * len(field_batch),
+                field_batch,
             )
-            data["unwatermarked_unsafe_category"] = (
-                uwm_eval["unsafe_category"] if "unsafe_category" in uwm_eval else ""
+            for data, safety_eval in zip(batch["data_batch"][idx], safety_evals):
+                data[f"{field}_safety_eval"] = safety_eval["safety_eval"]
+                data[f"{field}_unsafe_category"] = (
+                    safety_eval["unsafe_category"]
+                    if "unsafe_category" in safety_eval
+                    else ""
+                )
+
+    def _process_single_text(self, batch, field):
+        safety_evals = self.get_safety_score(
+            batch["prompt_batch"],
+            batch[f"{field}_batch"],
+        )
+        for data, safety_eval in zip(batch["data_batch"], safety_evals):
+            data[f"{field}_safety_eval"] = safety_eval["safety_eval"]
+            data[f"{field}_unsafe_category"] = (
+                safety_eval["unsafe_category"]
+                if "unsafe_category" in safety_eval
+                else ""
             )
+
+    def _write_batch_results(self, batch, output_fp):
+        for data in batch["data_batch"]:
             json.dump(data, output_fp)
             output_fp.write("\n")
         output_fp.flush()
 
     def _initialize_batch(self):
         return {
-            "prompts": [],
-            "watermarked_texts": [],
-            "unwatermarked_texts": [],
-            "data": [],
+            "prompt_batch": [],
+            "watermarked_text_batch": [],
+            "unwatermarked_text_batch": [],
+            "watermarked_texts_batch": [],
+            "unwatermarked_texts_batch": [],
+            "data_batch": [],
         }
 
     def _add_to_batch(self, batch, data):
-        batch["prompts"].append(data["prompt"])
-        batch["watermarked_texts"].append(data["watermarked_text"])
-        batch["unwatermarked_texts"].append(data["unwatermarked_text"])
-        batch["data"].append(data)
+        batch["prompt_batch"].append(data["prompt"])
+        batch["watermarked_text_batch"].append(data["watermarked_text"])
+        batch["unwatermarked_text_batch"].append(data["unwatermarked_text"])
+        batch["watermarked_texts_batch"].append(data["watermarked_texts"])
+        batch["unwatermarked_texts_batch"].append(data["unwatermarked_texts"])
+        batch["data_batch"].append(data)
 
 
 class SafetyScorerRegistry:
