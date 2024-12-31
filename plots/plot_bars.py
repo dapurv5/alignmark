@@ -3,7 +3,13 @@ from pathlib import Path
 import fire
 import matplotlib.pyplot as plt
 import numpy as np
-from plot_utils import get_color, get_short_watermark_name, parse_filename, read_jsonl
+from plot_utils import (
+    get_color,
+    get_short_watermark_name,
+    group_files_by_model,
+    parse_filename,
+    read_jsonl,
+)
 
 
 def process_categories(category_str):
@@ -129,18 +135,6 @@ def plot_safety_comparison(all_models_data, output_path):
 
         plt.savefig(output_path, bbox_inches="tight", dpi=300)
         plt.close()
-
-
-def group_files_by_model(files):
-    files_dict = {}
-    for file in files:
-        filename = file.name
-        parsed_info = parse_filename(filename)
-        model_name = parsed_info["model_name"]
-        if model_name not in files_dict:
-            files_dict[model_name] = []
-        files_dict[model_name].append(file)
-    return files_dict.values()
 
 
 def main(input_dir: str, output_dir: str = None):

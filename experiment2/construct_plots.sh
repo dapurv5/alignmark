@@ -19,15 +19,15 @@ list_of_models=("Llama-3.1-8B-Instruct" \
 #     --score_name truthfulness
 
 
-for model in "${list_of_models[@]}"; do
-    # Plot based on reward scores instead of truthfulness scores
-    python $HOME/MyCode/_MyResearchProjects/alignmark/plots/plot_score_with_param.py \
-        --input_dir $HOME/mint/wm-output40GB/outputs/watermarking-v1/exp_002_sweep_temp_truthfulqa_beam_rewards_armo  \
-        --model_name_to_plot $model \
-        --param_name_to_plot temperature \
-        --output_file $HOME/mint/wm-output40GB/outputs/watermarking-v1/exp_002_sweep_temp_truthfulqa_beam_rewards_armo/plots/reward_${model}_temp.pdf \
-        --score_name reward
-done
+# for model in "${list_of_models[@]}"; do
+#     # Plot based on reward scores instead of truthfulness scores
+#     python $HOME/MyCode/_MyResearchProjects/alignmark/plots/plot_score_with_param.py \
+#         --input_dir $HOME/mint/wm-output40GB/outputs/watermarking-v1/exp_002_sweep_temp_truthfulqa_beam_rewards_armo  \
+#         --model_name_to_plot $model \
+#         --param_name_to_plot temperature \
+#         --output_file $HOME/mint/wm-output40GB/outputs/watermarking-v1/exp_002_sweep_temp_truthfulqa_beam_rewards_armo/plots/reward_${model}_temp.pdf \
+#         --score_name reward
+# done
 
 # python $HOME/MyCode/_MyResearchProjects/alignmark/plots/plot_score_with_param.py \
 #     --input_dir $HOME/mint/wm-output40GB/outputs/watermarking-v1/exp_002_sweep_temp_truthfulqa_beam_truthfulness  \
@@ -35,3 +35,8 @@ done
 #     --param_name_to_plot temperature \
 #     --output_file $HOME/mint/wm-output40GB/outputs/watermarking-v1/exp_002_sweep_temp_truthfulqa_beam_truthfulness/plots/truthfulness_llama8b_temp.pdf \
 #     --score_name truthfulness
+
+python $HOME/MyCode/_MyResearchProjects/alignmark/plots/plot_score_bars.py \
+    --input_dir $HOME/mint/wm-output40GB/outputs/watermarking-v1/exp_002_sweep_temp_truthfulqa_beam_rewards_armo_subset_truthfulness  \
+    --output_dir $HOME/mint/wm-output40GB/outputs/watermarking-v1/exp_002_sweep_temp_truthfulqa_beam_rewards_armo_subset_truthfulness/plots \
+    --score_name truthfulness

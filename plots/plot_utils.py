@@ -73,6 +73,18 @@ def _is_scores_file(filename: str, score_name: str) -> bool:
     )
 
 
+def group_files_by_model(files):
+    files_dict = {}
+    for file in files:
+        filename = file.name
+        parsed_info = parse_filename(filename)
+        model_name = parsed_info["model_name"]
+        if model_name not in files_dict:
+            files_dict[model_name] = []
+        files_dict[model_name].append(file)
+    return files_dict.values()
+
+
 def process_files(
     input_dir: str,
     model_name_to_plot: str,
@@ -138,6 +150,7 @@ def get_short_model_name(model_name: str) -> str:
 
 def get_short_watermark_name(watermark_type: str) -> str:
     return {
+        "unwatermarked": "Unwatermarked",
         "maryland": "KGW (Distort)",
         "openai": "Gumbel (Dist-Free)",
         "maryland-BoN-2": "KGW (BoN-2)",
