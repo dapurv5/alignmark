@@ -4,18 +4,12 @@ import pandas as pd
 import pub_ready_plots as prp
 from fire import Fire
 
-
-def extract_model_name(filepath):
-    filename = str(filepath)
-    if "Meta-Llama" in filename:
-        return "LLaMA-8B"
-    elif "Mistral" in filename:
-        return "Mistral-7B"
-    elif "Phi-3" in filename:
-        return "Phi-3-Mini"
-    elif "Qwen2" in filename:
-        return "Qwen2-7B"
-    return "Unknown"
+from plots.plot_utils import (
+    get_color,
+    get_pattern,
+    get_short_model_name,
+    get_short_watermark_name,
+)
 
 
 def calculate_deltas(df: pd.DataFrame) -> pd.DataFrame:
@@ -46,22 +40,21 @@ def calculate_deltas(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(delta_rows)
 
 
-def plot(df: pd.DataFrame):
+def plot(df: pd.DataFrame, output_path: str):
     # Calculate deltas
     delta_df = calculate_deltas(df)
-
-    # Colors using ICML color scheme
-    colors = {
-        "KGW": "#FF8C00",  # Orange
-        "Gumbel": "#2CA02C",  # ICML green
-    }
 
     with prp.get_context(layout=prp.Layout.ICML, single_col=True) as (fig, ax):
         # Clear the main axis as we'll create our own subplots
         ax.remove()
 
+        # Increase figure size
+        fig.set_size_inches(20, 6)
+
         # Create two subplots with more space between them
-        gs = fig.add_gridspec(1, 2, hspace=0.3, wspace=0.4)  # Increased wspace
+        gs = fig.add_gridspec(
+            1, 2, hspace=0.3, wspace=0.5
+        )  # Increased wspace from 0.4 to 0.5
         ax1 = fig.add_subplot(gs[0, 0])
         ax2 = fig.add_subplot(gs[0, 1])
 
@@ -90,14 +83,16 @@ def plot(df: pd.DataFrame):
                 x + i * width,
                 data,
                 width,
-                label=setting,
-                color=colors[setting],
-                edgecolor="none",
+                label=get_short_watermark_name(setting),
+                color=get_color(setting),
+                edgecolor="black",
+                linewidth=0.5,
                 alpha=0.7,
+                hatch=get_pattern(setting),
             )
 
-        ax1.set_ylabel("Δ Unsafe Responses")
-        ax1.set_title("Change in Unsafe Responses")
+        ax1.set_ylabel("Δ Unsafe Responses", fontsize=24)
+        ax1.set_title("Change in Unsafe Responses", fontsize=22)
 
         # Plot Overrefusal changes
         for i, setting in enumerate(["KGW", "Gumbel"]):
@@ -113,45 +108,49 @@ def plot(df: pd.DataFrame):
                 x + i * width,
                 data,
                 width,
-                label=setting,
-                color=colors[setting],
-                edgecolor="none",
+                label=get_short_watermark_name(setting),
+                color=get_color(setting),
+                edgecolor="black",
+                linewidth=0.5,
                 alpha=0.7,
+                hatch=get_pattern(setting),
             )
 
-        ax2.set_ylabel("Δ Overrefusal Count")
-        ax2.set_title("Change in Overrefusal")
+        ax2.set_ylabel("Δ Overrefusal Count", fontsize=24)
+        ax2.set_title("Change in Overrefusal", fontsize=22)
 
         # Customize both subplots with improved formatting
         for ax in [ax1, ax2]:
             ax.set_xticks(x + width / 2)
             ax.set_xticklabels(
-                [extract_model_name(model) for model in model_order],
+                [
+                    get_short_model_name(model).replace("-Inst", "")
+                    for model in model_order
+                ],
                 ha="center",
-                fontsize=14,  # Increased from 12
+                fontsize=18,
             )
             ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5, alpha=0.3)
-            ax.grid(True, axis="y", linestyle="--", alpha=0.2)
+            ax.grid(True, axis="y", linestyle="--", alpha=0.7)
 
-            # Increase font sizes
-            ax.tick_params(axis="both", labelsize=14)  # Increased from 12
-            ax.set_ylabel(ax.get_ylabel(), fontsize=16)  # Increased from 14
-            ax.set_title(ax.get_title(), fontsize=16, pad=10)  # Increased from 14
+            # Increase y-axis tick label size
+            ax.tick_params(axis="y", labelsize=16)
 
-        # Update legend formatting
+        # Update legend formatting and position
         ax1.legend(
-            title="Watermarking",
-            bbox_to_anchor=(1.05, 1),
-            loc="upper left",
-            fontsize=14,  # Increased from 12
-            title_fontsize=15,  # Increased from 13
+            bbox_to_anchor=(1.2, 1.15),
+            loc="center",
+            fontsize=14,
+            title_fontsize=15,
+            ncol=2,
+            bbox_transform=ax1.transAxes,
         )
 
-        # Adjust layout with more space
-        plt.tight_layout(pad=1.5)  # Increased padding
+        # Adjust layout with more space at the top for the legend
+        plt.tight_layout(rect=[0, 0, 1, 0.90])
 
         # Save the figure with higher quality
-        plt.savefig("watermarking_effects.pdf", bbox_inches="tight", dpi=300)
+        plt.savefig(output_path, bbox_inches="tight", dpi=300)
 
         # Display the plot
         plt.show()
@@ -162,9 +161,9 @@ def plot(df: pd.DataFrame):
     print(delta_df.to_string(index=False))
 
 
-def main(input_path: str):
+def main(input_path: str, output_path: str):
     df = pd.read_csv(input_path, sep="\t")
-    plot(df)
+    plot(df, output_path)
 
 
 if __name__ == "__main__":

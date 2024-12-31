@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from plot_utils import (
     get_color,
+    get_short_model_name,
     get_short_watermark_name,
     group_files_by_model,
     parse_filename,
@@ -115,7 +116,9 @@ def plot_safety_comparison(all_models_data, output_path):
                         alpha=0.7,
                         color=get_color(watermark_type),
                     )
-            ax.set_xlabel(f"{model_name}", fontsize=8, labelpad=5)
+            ax.set_xlabel(
+                f"{get_short_model_name(model_name)}", fontsize=10, labelpad=5
+            )
             if idx == 0:
                 ax.set_ylabel("Safety Categories", fontsize=12)
                 ax.set_yticks([r + bar_width / 2 for r in range(len(categories))])

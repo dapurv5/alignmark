@@ -34,7 +34,7 @@ def plot_score_comparison(all_models_data, output_file, score_name):
         )  # Add gap between groups
 
         # Add horizontal grid lines
-        ax.yaxis.grid(True, linestyle="--", alpha=0.5)
+        ax.yaxis.grid(True, linestyle="--", alpha=0.7)
         ax.set_axisbelow(True)  # Ensure grid lines are below the bars
 
         # Plot bars for each model
@@ -55,13 +55,13 @@ def plot_score_comparison(all_models_data, output_file, score_name):
                 )
 
         # Customize the plot
-        ax.set_ylabel(f"{score_name.capitalize()} Score", fontsize=12)
+        ax.set_ylabel(f"{score_name.capitalize()} Score", fontsize=14)
         ax.set_xticks(group_positions + (group_width - bar_width) / 2)
         ax.set_xticklabels(
             [get_short_model_name(model) for model in models],
             rotation=0,
             ha="center",
-            fontsize=9,
+            fontsize=10,
         )
 
         # Calculate optimal column distribution

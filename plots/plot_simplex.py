@@ -87,19 +87,22 @@ def create_legends(ax, markers, colors):
         borderaxespad=0.0,
         ncol=1,
         frameon=False,
-        fontsize=12,
+        fontsize=16,
         title_fontsize=12,
         alignment="right",
     )
     ax.add_artist(leg1)
+
     ax.legend(
-        handles=setting_elements,
-        bbox_to_anchor=(-0.08, 1.0),
+        handles=sorted(
+            setting_elements, key=lambda x: len(x.get_label()), reverse=True
+        ),
+        bbox_to_anchor=(-0.08, 0.9),
         loc="upper left",
         borderaxespad=0.0,
         ncol=1,
         frameon=False,
-        fontsize=12,
+        fontsize=18,
         title_fontsize=12,
     )
 

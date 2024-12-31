@@ -145,6 +145,15 @@ def get_short_model_name(model_name: str) -> str:
         "gemma-2-9b-it": "Gemma-9B-Inst",
         "Phi-3-mini-4k-instruct": "Phi-3-Mini-Inst",
         "Llama-3.1-8B-Instruct": "LLaMA-8B-Inst",
+        "Llama-3.2-1B-Instruct": "LLaMA-1B-Inst",
+        "Llama-3.2-3B-Instruct": "LLaMA-3B-Inst",
+        "Llama-3.1-70B-Instruct": "LLaMA-70B-Inst",
+        "Qwen2.5-7B-Instruct": "Qwen2.5-7B-Inst",
+        "Qwen2.5-3B-Instruct": "Qwen2.5-3B-Inst",
+        "Qwen2-7B-Instruct": "Qwen2-7B-Inst",
+        "Qwen2-3B-Instruct": "Qwen2-3B-Inst",
+        "Qwen2.5-1.5B-Instruct": "Qwen2.5-1.5B-Inst",
+        "Qwen2.5-0.5B-Instruct": "Qwen2.5-0.5B-Inst",
     }.get(model_name, model_name)
 
 
@@ -159,6 +168,8 @@ def get_short_watermark_name(watermark_type: str) -> str:
         "openai-BoN-3": "Gumbel (BoN-3)",
         "maryland-BoN-4": "KGW (BoN-4)",
         "openai-BoN-4": "Gumbel (BoN-4)",
+        "KGW": "KGW (Distort)",
+        "Gumbel": "Gumbel (Dist-Free)",
     }.get(watermark_type, watermark_type)
 
 
@@ -168,6 +179,10 @@ def get_color(watermark_type: str) -> str:
         return "#E66101"  # Deep orange
     # OpenAI family - Green shades (more blue-tinted for better distinction)
     elif "openai" in watermark_type:
+        return "#1B7837"  # Deep green
+    elif "KGW" in watermark_type:
+        return "#E66101"  # Deep orange
+    elif "Gumbel" in watermark_type:
         return "#1B7837"  # Deep green
     else:
         return "#1f77b4"  # Blue

@@ -59,8 +59,7 @@ python run_refusal_scorer.py --input_path $HOME/mint/watermarking-analysis/EXP_0
 
 python plots/plot_simplex.py --input_path $HOME/mint/watermarking-analysis/SimplexData_v1.tsv  --model_name "Meta-Llama-3.1-8B-Instruct"
 
-python plots/plot_stacked_bar_chart.py --input_path $HOME/mint/watermarking-analysis/SimplexData_v3.tsv
-
+python plots/plot_stacked_bar_chart.py --input_path $HOME/mint/watermarking-analysis/SimplexData_v3.tsv --output_path $HOME/mint/watermarking-analysis/simplexdata_v3_stackedbar.pdf
 
 ### EXPERIMENT 5 (Feasability)
 
