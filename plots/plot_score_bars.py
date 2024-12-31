@@ -64,14 +64,55 @@ def plot_score_comparison(all_models_data, output_file, score_name):
             fontsize=9,
         )
 
-        # Add legend inside the plot
-        ax.legend(loc="upper right")
+        # Calculate optimal column distribution
+        handles, labels = ax.get_legend_handles_labels()
+        total_items = len(labels)
+
+        if total_items <= 3:
+            # Single row for 3 or fewer items
+            ax.legend(
+                loc="upper center",
+                bbox_to_anchor=(0.5, 1.2),
+                ncol=total_items,
+                fontsize=9,
+                handletextpad=0.5,
+                columnspacing=1.0,
+            )
+        else:
+            # Split into two rows for more than 3 items
+            import math
+
+            cols_first_row = math.ceil(total_items / 2)
+            items_first_row = cols_first_row
+
+            legend1 = ax.legend(
+                handles[:items_first_row],
+                labels[:items_first_row],
+                loc="upper center",
+                bbox_to_anchor=(0.5, 1.35),
+                ncol=cols_first_row,
+                fontsize=9,
+                handletextpad=0.5,
+                columnspacing=1.0,
+            )
+            ax.add_artist(legend1)
+
+            ax.legend(
+                handles[items_first_row:],
+                labels[items_first_row:],
+                loc="upper center",
+                bbox_to_anchor=(0.5, 1.2),
+                ncol=total_items - items_first_row,
+                fontsize=9,
+                handletextpad=0.5,
+                columnspacing=1.0,
+            )
 
         # Adjust layout to prevent label cutoff
         fig.tight_layout()
 
-        # Save the plot
-        fig.savefig(output_file, bbox_inches="tight", dpi=300)
+        # Save the plot with increased top margin to accommodate legend
+        fig.savefig(output_file, bbox_inches="tight", dpi=300, pad_inches=0.3)
 
 
 def get_scores(data, score_name, prefix="watermarked"):
