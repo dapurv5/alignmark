@@ -70,20 +70,26 @@ class TruthfulnessScorerBase:
         raise NotImplementedError("Subclasses must implement this method")
 
     def compute_truthfulness_scores(self, input_path: str, output_path: str):
+        nr_lines_input, nr_lines_output = 0, 0
         logger.info(
             f"Computing truthfulness scores for {input_path} and writing to {output_path}"
         )
         # If the output file exists and has the same number of lines as the input file, skip
-        if os.path.exists(output_path) and sum(1 for _ in open(output_path)) == sum(
-            1 for _ in open(input_path)
-        ):
-            logger.info(
-                f"Output file {output_path} already exists and has the same number of lines as the input file, skipping"
-            )
-            return
-        with open(input_path, "r") as input_fp, open(output_path, "w") as output_fp:
+        if os.path.exists(output_path):
+            nr_lines_input = sum(1 for _ in open(input_path))
+            nr_lines_output = sum(1 for _ in open(output_path))
+            if nr_lines_output == nr_lines_input:
+                logger.info(
+                    f"Output file {output_path} already exists and has the same number of lines as the input file, skipping"
+                )
+                return
+        with open(input_path, "r") as input_fp, open(
+            output_path, "w" if nr_lines_output == 0 else "a"
+        ) as output_fp:
             batch = self._initialize_batch()
-            for line in tqdm(input_fp):
+            for line_num, line in tqdm(enumerate(input_fp)):
+                if line_num < nr_lines_output:
+                    continue
                 data = json.loads(line)
                 cleanup(data, ROLE_TAGS, REMOVE_TOKENS, "question")
                 self._add_to_batch(batch, data)
@@ -282,7 +288,14 @@ class OpenaiTruthfulnessScorer(TruthfulnessScorerBase):
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.0,
             )
-            gpt4_evaluation = json.loads(response.choices[0].message.content)
+            content = response.choices[0].message.content
+            if "}" not in content:
+                content += "}"
+            try:
+                gpt4_evaluation = json.loads(content)
+            except json.JSONDecodeError:
+                logger.error(f"Failed to decode response: {content}")
+                gpt4_evaluation = {}
             return gpt4_evaluation.get("truthfulness_score", 0)
 
         with ThreadPoolExecutor(max_workers=self.batch_size) as executor:
