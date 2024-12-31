@@ -10,7 +10,7 @@ NUM_GPUS_PER_PROCESS=1
 NUM_PROCESSES=8
 REWARD_MODEL="RLHFlow/ArmoRM-Llama3-8B-v0.1"  # llm-blender/PairRM | RLHFlow/ArmoRM-Llama3-8B-v0.1
 REWARD_MODEL_SHORTFORM="armo"  # blender | armo
-TEXT_FIELD="question"
+TEXT_FIELD="prompt"
 ###################
 
 if [ "$CLUSTER" == "WULVER" ]; then

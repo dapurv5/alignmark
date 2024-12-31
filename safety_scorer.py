@@ -51,28 +51,34 @@ class SafetyScorerBase:
         raise NotImplementedError("Subclasses must implement this method")
 
     def compute_safety_scores(self, input_path: str, output_path: str):
+        nr_lines_input, nr_lines_output = 0, 0
         logger.info(
             f"Computing safety scores for {input_path} and writing to {output_path}"
         )
         # If the output file exists and has the same number of lines as the input file, skip
-        if os.path.exists(output_path) and sum(1 for _ in open(output_path)) == sum(
-            1 for _ in open(input_path)
-        ):
-            logger.info(
-                f"Output file {output_path} already exists and has the same number of lines as the input file, skipping"
-            )
+        if os.path.exists(output_path):
+            nr_lines_input = sum(1 for _ in open(input_path))
+            nr_lines_output = sum(1 for _ in open(output_path))
+            if nr_lines_output == nr_lines_input:
+                logger.info(
+                    f"Output file {output_path} already exists and has the same number of lines as the input file, skipping"
+                )
             return
-        with open(input_path, "r") as input_fp, open(output_path, "w") as output_fp:
+        with open(input_path, "r") as input_fp, open(
+            output_path, "w" if nr_lines_output == 0 else "a"
+        ) as output_fp:
             batch = self._initialize_batch()
-            for idx, line in tqdm(enumerate(input_fp)):
+            for line_num, line in tqdm(enumerate(input_fp)):
+                if line_num < nr_lines_output:
+                    continue
                 data = json.loads(line)
                 cleanup(data, INSTRUCTION_TAGS + RESPONSE_TAGS, [], "prompt")
                 self._add_to_batch(batch, data)
-                if len(batch["watermarked_texts"]) == self.batch_size:
+                if len(batch["watermarked_text_batch"]) == self.batch_size:
                     self._process_batch(batch, output_fp)
                     batch = self._initialize_batch()
             # Handle the last batch
-            if batch["watermarked_texts"]:
+            if batch["watermarked_text_batch"]:
                 self._process_batch(batch, output_fp)
 
     def _process_batch(self, batch, output_fp):
@@ -105,13 +111,19 @@ class SafetyScorerBase:
                 [batch["prompt_batch"][idx]] * len(field_batch),
                 field_batch,
             )
-            for data, safety_eval in zip(batch["data_batch"][idx], safety_evals):
-                data[f"{field}_safety_eval"] = safety_eval["safety_eval"]
-                data[f"{field}_unsafe_category"] = (
+            safety_eval_list = [
+                safety_eval["safety_eval"] for safety_eval in safety_evals
+            ]
+            unsafe_category_list = [
+                (
                     safety_eval["unsafe_category"]
                     if "unsafe_category" in safety_eval
                     else ""
                 )
+                for safety_eval in safety_evals
+            ]
+            batch["data_batch"][idx][f"{field}_safety_eval"] = safety_eval_list
+            batch["data_batch"][idx][f"{field}_unsafe_category"] = unsafe_category_list
 
     def _process_single_text(self, batch, field):
         safety_evals = self.get_safety_score(

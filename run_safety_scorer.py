@@ -18,6 +18,8 @@ def run_safety_scorer(
     if os.path.isfile(input_path) and os.path.isfile(output_path):
         scorer.compute_safety_scores(input_path, output_path)
     else:
+        if not os.path.exists(output_path):
+            os.makedirs(output_path, exist_ok=True)
         for input_file in glob.glob(os.path.join(input_path, "*.jsonl")):
             if not input_file.endswith("_safety_scores.jsonl"):
                 input_filename = os.path.basename(input_file)
