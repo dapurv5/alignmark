@@ -109,11 +109,15 @@ def main(
                     top_score_index = get_top_score_index(
                         candidate_scores, rng, preferred_categorical_label
                     )
-                    blob[tgt_score_field] = [blob[score_field][top_score_index]]
+                    blob[tgt_score_field] = blob[score_field][top_score_index]
                     for i, src_field in enumerate(src_fields):
                         assert isinstance(blob[src_field], list)
-                        assert isinstance(blob[tgt_fields[i]], str)
-                        blob[tgt_fields[i]] = [blob[src_field][top_score_index]]
+                        assert (
+                            isinstance(blob[tgt_fields[i]], str)
+                            or isinstance(blob[tgt_fields[i]], float)
+                            or isinstance(blob[tgt_fields[i]], int)
+                        )
+                        blob[tgt_fields[i]] = blob[src_field][top_score_index]
                     output_fp.write(json.dumps(blob) + "\n")
 
 

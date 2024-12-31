@@ -2,6 +2,10 @@ from pathlib import Path
 
 import fire
 from plot_utils import (
+    get_color,
+    get_pattern,
+    get_short_model_name,
+    get_short_watermark_name,
     group_files_by_model,
     parse_filename,
     read_jsonl,
@@ -14,7 +18,6 @@ def plot_score_comparison(all_models_data, output_file, score_name):
 
     import numpy as np
     import pub_ready_plots as prp
-    from plot_utils import get_color, get_short_model_name, get_short_watermark_name
 
     # Use NeurIPS style
     with prp.get_context(layout=prp.Layout.NEURIPS, width_frac=1, height_frac=0.3) as (
@@ -46,13 +49,19 @@ def plot_score_comparison(all_models_data, output_file, score_name):
                     label=get_short_watermark_name(wm_type) if model_idx == 0 else "",
                     alpha=0.7,
                     color=get_color(wm_type),
+                    hatch=get_pattern(wm_type),
+                    edgecolor="black",
+                    linewidth=0.5,
                 )
 
         # Customize the plot
         ax.set_ylabel(f"{score_name.capitalize()} Score", fontsize=12)
         ax.set_xticks(group_positions + (group_width - bar_width) / 2)
         ax.set_xticklabels(
-            [get_short_model_name(model) for model in models], rotation=0, ha="center"
+            [get_short_model_name(model) for model in models],
+            rotation=0,
+            ha="center",
+            fontsize=9,
         )
 
         # Add legend inside the plot

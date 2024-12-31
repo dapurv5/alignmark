@@ -164,24 +164,22 @@ def get_short_watermark_name(watermark_type: str) -> str:
 
 def get_color(watermark_type: str) -> str:
     # Maryland family - Orange shades (warmer, more saturated)
-    if watermark_type == "maryland":
+    if "maryland" in watermark_type:
         return "#E66101"  # Deep orange
-    elif watermark_type == "maryland-BoN-2":
-        return "#FDB863"  # Light orange
-    elif watermark_type == "maryland-BoN-3":
-        return "#F4A582"  # Pale orange
-    elif watermark_type == "maryland-BoN-4":
-        return "#FDAE61"  # Medium orange
-
     # OpenAI family - Green shades (more blue-tinted for better distinction)
-    elif watermark_type == "openai":
+    elif "openai" in watermark_type:
         return "#1B7837"  # Deep green
-    elif watermark_type == "openai-BoN-2":
-        return "#63B179"  # Medium green
-    elif watermark_type == "openai-BoN-3":
-        return "#A6DBA0"  # Light green
-    elif watermark_type == "openai-BoN-4":
-        return "#4DAF4A"  # Bright green
-
     else:
         return "#1f77b4"  # Blue
+
+
+def get_pattern(watermark_type: str) -> str:
+    # Maryland family - Different patterns
+    if "BoN-2" in watermark_type:
+        return "//"
+    elif "BoN-3" in watermark_type:
+        return "++"
+    elif "BoN-4" in watermark_type:
+        return "."
+    else:
+        return ""  # No pattern

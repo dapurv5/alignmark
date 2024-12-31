@@ -36,7 +36,12 @@ list_of_models=("Llama-3.1-8B-Instruct" \
 #     --output_file $HOME/mint/wm-output40GB/outputs/watermarking-v1/exp_002_sweep_temp_truthfulqa_beam_truthfulness/plots/truthfulness_llama8b_temp.pdf \
 #     --score_name truthfulness
 
+# python $HOME/MyCode/_MyResearchProjects/alignmark/plots/plot_score_bars.py \
+#     --input_dir $HOME/mint/wm-output40GB/outputs/watermarking-v1/exp_002_sweep_temp_truthfulqa_beam_rewards_armo_subset_truthfulness  \
+#     --output_dir $HOME/mint/wm-output40GB/outputs/watermarking-v1/exp_002_sweep_temp_truthfulqa_beam_rewards_armo_subset_truthfulness/plots \
+#     --score_name truthfulness
+
 python $HOME/MyCode/_MyResearchProjects/alignmark/plots/plot_score_bars.py \
-    --input_dir $HOME/mint/wm-output40GB/outputs/watermarking-v1/exp_002_sweep_temp_truthfulqa_beam_rewards_armo_subset_truthfulness  \
-    --output_dir $HOME/mint/wm-output40GB/outputs/watermarking-v1/exp_002_sweep_temp_truthfulqa_beam_rewards_armo_subset_truthfulness/plots \
+    --input_dir $HOME/mint/wm-output40GB/outputs/watermarking-v1/exp_002_sweep_temp_truthfulqa_beam_rewards_armo_subset_truthfulness_BoN  \
+    --output_dir $HOME/mint/wm-output40GB/outputs/watermarking-v1/exp_002_sweep_temp_truthfulqa_beam_rewards_armo_subset_truthfulness_BoN/plots \
     --score_name truthfulness
