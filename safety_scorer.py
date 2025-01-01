@@ -63,7 +63,7 @@ class SafetyScorerBase:
                 logger.info(
                     f"Output file {output_path} already exists and has the same number of lines as the input file, skipping"
                 )
-            return
+                return
         with open(input_path, "r") as input_fp, open(
             output_path, "w" if nr_lines_output == 0 else "a"
         ) as output_fp:
