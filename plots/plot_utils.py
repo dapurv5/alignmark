@@ -191,10 +191,10 @@ def get_color(watermark_type: str) -> str:
 def get_pattern(watermark_type: str) -> str:
     # Maryland family - Different patterns
     if "BoN-2" in watermark_type:
-        return "//"
+        return "///"
     elif "BoN-3" in watermark_type:
         return "++"
     elif "BoN-4" in watermark_type:
-        return "."
+        return "...."
     else:
         return ""  # No pattern

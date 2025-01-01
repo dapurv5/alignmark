@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from plot_utils import (
     get_color,
+    get_pattern,
     get_short_model_name,
     get_short_watermark_name,
     group_files_by_model,
@@ -42,9 +43,14 @@ def calculate_category_percentages(data):
     category_counts = {cat: 0 for cat in safety_categories.values()}
 
     for item in data:
-        watermarked_cats = process_categories(
-            item.get("watermarked_unsafe_category", "")
-        )
+        if "watermarked_unsafe_category" in item:
+            watermarked_cats = process_categories(
+                item.get("watermarked_unsafe_category", "")
+            )
+        else:
+            watermarked_cats = process_categories(
+                item.get("watermarked_text_unsafe_category", "")
+            )
         for cat in watermarked_cats:
             if cat in safety_categories:
                 category_counts[safety_categories[cat]] += 1
@@ -76,7 +82,7 @@ def plot_safety_comparison(all_models_data, output_path):
             x=0.55,
         )
 
-        bar_width = 0.35
+        bar_width = 0.25  # 0.35
         # # Sort all_models_data by model size obtained by parsing the model name e.g. Qwen2.5-72B-Instruct -> 72B, Qwen2.5-14B -> 14B
         # all_models_data = dict(
         #     sorted(
@@ -115,6 +121,9 @@ def plot_safety_comparison(all_models_data, output_path):
                         label=get_short_watermark_name(watermark_type),
                         alpha=0.7,
                         color=get_color(watermark_type),
+                        hatch=get_pattern(watermark_type),
+                        edgecolor="black",
+                        linewidth=0.3,
                     )
             ax.set_xlabel(
                 f"{get_short_model_name(model_name)}", fontsize=10, labelpad=5
@@ -184,11 +193,19 @@ def main(input_dir: str, output_dir: str = None):
             if not model_data_by_wm["unwatermarked"]:
                 model_data_by_wm["unwatermarked"] = calculate_category_percentages(
                     [
-                        {
-                            "watermarked_unsafe_category": d[
-                                "unwatermarked_unsafe_category"
-                            ]
-                        }
+                        (
+                            {
+                                "watermarked_unsafe_category": d[
+                                    "unwatermarked_unsafe_category"
+                                ]
+                            }
+                            if "watermarked_unsafe_category" in d
+                            else {
+                                "watermarked_text_unsafe_category": d[
+                                    "unwatermarked_text_unsafe_category"
+                                ]
+                            }
+                        )
                         for d in data
                     ]
                 )

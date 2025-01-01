@@ -28,7 +28,10 @@ def get_top_score_index(
             for i, score in enumerate(candidate_scores)
             if score == preferred_categorical_label
         ]
-        return rng.choice(candidate_indices)
+        if len(candidate_indices) == 0:
+            return rng.choice(range(len(candidate_scores)))
+        else:
+            return rng.choice(candidate_indices)
     return np.argmax(candidate_scores)
 
 
