@@ -1,7 +1,7 @@
 import glob
 import json
 import os
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 from fire import Fire
@@ -20,7 +20,7 @@ def create_output_filename(input_filename: str, n: int) -> str:
 def get_top_score_index(
     candidate_scores: list[float],
     rng: np.random.Generator,
-    preferred_categorical_label: Optional[str] = None,
+    preferred_categorical_label: Optional[Any] = None,
 ) -> int:
     if preferred_categorical_label is not None:
         candidate_indices = [
@@ -88,9 +88,9 @@ def main(
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     if isinstance(src_fields, str):
-        src_fields = [src_fields]
+        src_fields = src_fields.split(",")
     if isinstance(tgt_fields, str):
-        tgt_fields = [tgt_fields]
+        tgt_fields = tgt_fields.split(",")
     assert len(src_fields) == len(tgt_fields)
 
     # Get all the files in the input directory that match the filename pattern

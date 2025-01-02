@@ -21,8 +21,9 @@ python generate_best_of_n.py \
     --input_dir $EXP_DIR_PREFIX/$EXP_NAME \
     --output_dir $EXP_DIR_PREFIX/$TGT_DIR_NAME \
     --score_field "watermarked_texts_reward_score" \
-    --src_fields "watermarked_texts" \
+    --src_fields "watermarked_texts,watermarked_texts_reward_score,watermarked_texts.is_watermarked,watermarked_texts.score,watermarked_texts.pvalue" \
     --tgt_score_field "watermarked_text_reward_score" \
-    --tgt_fields "watermarked_text" \
+    --tgt_fields "watermarked_text,watermarked_text_reward_score,watermarked_text.is_watermarked,watermarked_text.score,watermarked_text.pvalue" \
     --n $N \
     --filename_pattern "*_rewards.jsonl"
+
