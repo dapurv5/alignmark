@@ -6,20 +6,7 @@ import ternary
 from fire import Fire
 from matplotlib.patches import ConnectionPatch
 
-
-def extract_model_name(filepath):
-    filename = str(filepath)
-    if "Meta-Llama" in filename:
-        return "LLaMA-8B-Inst"
-    elif "Mistral" in filename:
-        return "Mistral-7B-Inst"
-    elif "gemma" in filename:
-        return "Gemma-2-9B-Inst"
-    elif "Phi-3" in filename:
-        return "Phi-3-Mini-Inst"
-    elif "Qwen2-7B-Instruct" in filename:
-        return "Qwen2-7B-Inst"
-    return "Unknown"
+from plots.plot_utils import get_color, get_short_model_name, get_short_watermark_name
 
 
 def setup_ternary_plot(ax):
@@ -53,14 +40,14 @@ def add_vertex_labels(tax):
     tax.clear_matplotlib_ticks()
 
 
-def create_legends(ax, markers, colors):
+def create_legends(ax, markers, watermark_types):
     model_elements = [
         plt.Line2D(
             [0],
             [0],
             marker=marker,
             color="gray",
-            label=extract_model_name(model),
+            label=get_short_model_name(model),
             markersize=8,
             linestyle="None",
         )
@@ -72,12 +59,12 @@ def create_legends(ax, markers, colors):
             [0],
             [0],
             marker="o",
-            color=color,
-            label=setting,
+            color=get_color(watermark_type),
+            label=get_short_watermark_name(watermark_type),
             markersize=8,
             linestyle="None",
         )
-        for setting, color in colors.items()
+        for watermark_type in watermark_types
     ]
 
     leg1 = ax.legend(
@@ -111,10 +98,23 @@ def add_arrows(ax, model_points, models_to_connect):
     for model in models_to_connect:
         if model not in model_points:
             continue
-
         start = model_points[model]["Unwatermarked"]
-        kgw = model_points[model].get("KGW")
-        gumbel = model_points[model].get("Gumbel")
+        if "KGW" in model_points[model] and "Gumbel" in model_points[model]:
+            kgw = model_points[model].get("KGW")
+            gumbel = model_points[model].get("Gumbel")
+        elif (
+            "KGW (Distort)" in model_points[model]
+            and "Gumbel (Dist-Free)" in model_points[model]
+        ):
+            kgw = model_points[model].get("KGW (Distort)")
+            gumbel = model_points[model].get("Gumbel (Dist-Free)")
+        elif (
+            "KGW (BoN-2)" in model_points[model]
+            and "Gumbel (BoN-2)" in model_points[model]
+        ):
+            # Change this to BoN-4 for plotting for BoN-4
+            kgw = model_points[model].get("KGW (BoN-2)")
+            gumbel = model_points[model].get("Gumbel (BoN-2)")
 
         if not (kgw and gumbel):
             continue
@@ -152,7 +152,12 @@ def plot(df: pd.DataFrame, markers: dict[str, str]):
         total = df.loc[idx, metrics].sum()
         df.loc[idx, metrics] = df.loc[idx, metrics] / total
 
-    colors = {"KGW": "#ff7f0e", "Gumbel": "#2ca02c", "Unwatermarked": "#1f77b4"}
+    watermark_types = df["Setting"].unique()
+    # colors = {
+    #     "KGW": "#ff7f0e",
+    #     "Gumbel": "#2ca02c",
+    #     "Unwatermarked": "#1f77b4",
+    # }
 
     with prp.get_context(layout=prp.Layout.ICML, single_col=True) as (fig, ax):
         tax = setup_ternary_plot(ax)
@@ -161,8 +166,8 @@ def plot(df: pd.DataFrame, markers: dict[str, str]):
         model_points = {}
         for model in markers:
             model_points[model] = {}
-            for setting in colors:
-                mask = (df["Model Name"] == model) & (df["Setting"] == setting)
+            for watermark_type in watermark_types:
+                mask = (df["Model Name"] == model) & (df["Setting"] == watermark_type)
                 if not mask.any():
                     continue
 
@@ -171,21 +176,24 @@ def plot(df: pd.DataFrame, markers: dict[str, str]):
                 scatter_points = tax.scatter(
                     [coords],
                     marker=markers[model],
-                    color=colors[setting],
+                    color=get_color(watermark_type),
                     s=100,
-                    label=f"{model} ({setting})",
+                    label=f"{model} ({watermark_type})",
                     zorder=10,
                 )
 
                 if ax.collections:
                     last_collection = ax.collections[-1]
-                    model_points[model][setting] = tuple(
+                    model_points[model][watermark_type] = tuple(
                         last_collection.get_offsets()[0]
                     )
-
-        add_arrows(ax, model_points, ["Qwen2-7B-Instruct", "Phi-3-mini-4k-instruct"])
+        add_arrows(
+            ax,
+            model_points,
+            ["Qwen2-7B-Instruct", "Phi-3-mini-4k-instruct", "Qwen2.5-7B-Instruct"],
+        )
         add_vertex_labels(tax)
-        create_legends(ax, markers, colors)
+        create_legends(ax, markers, watermark_types)
         plt.tight_layout(rect=[-0.1, 0, 1, 1])
         plt.show()
 
@@ -217,8 +225,10 @@ def main(input_path: str, model_name: str = None):
     # Define markers for different models
     markers = {
         "Qwen2-7B-Instruct": "o",
+        "Qwen2.5-7B-Instruct": "o",
         "Phi-3-mini-4k-instruct": "s",
         "Meta-Llama-3.1-8B-Instruct": "^",
+        "Llama-3.1-8B-Instruct": "^",
         "Mistral-7B-Instruct-v0.3": "D",
     }
     # Filter the markers to only include the models in the dataframe

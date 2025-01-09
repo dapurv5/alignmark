@@ -160,6 +160,7 @@ def get_short_model_name(model_name: str) -> str:
 def get_short_watermark_name(watermark_type: str) -> str:
     return {
         "unwatermarked": "Unwatermarked",
+        "Unwatermarked": "Unwatermarked",
         "maryland": "KGW (Distort)",
         "openai": "Gumbel (Dist-Free)",
         "maryland-BoN-2": "KGW (BoN-2)",
@@ -170,6 +171,14 @@ def get_short_watermark_name(watermark_type: str) -> str:
         "openai-BoN-4": "Gumbel (BoN-4)",
         "KGW": "KGW (Distort)",
         "Gumbel": "Gumbel (Dist-Free)",
+        "KGW (Distort)": "KGW (Distort)",
+        "Gumbel (Dist-Free)": "Gumbel (Dist-Free)",
+        "KGW (BoN-2)": "KGW (BoN-2)",
+        "Gumbel (BoN-2)": "Gumbel (BoN-2)",
+        "KGW (BoN-3)": "KGW (BoN-3)",
+        "Gumbel (BoN-3)": "Gumbel (BoN-3)",
+        "KGW (BoN-4)": "KGW (BoN-4)",
+        "Gumbel (BoN-4)": "Gumbel (BoN-4)",
     }.get(watermark_type, watermark_type)
 
 

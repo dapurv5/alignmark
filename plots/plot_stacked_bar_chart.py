@@ -16,19 +16,22 @@ def calculate_deltas(df: pd.DataFrame) -> pd.DataFrame:
     """Calculate deltas from unwatermarked baseline for each model."""
     metrics = ["Unsafe", "Overrefusal"]
     delta_rows = []
+    watermark_types = list(set(df["Setting"].unique()) - {"Unwatermarked"})
 
     for model in df["Model Name"].unique():
         model_data = df[df["Model Name"] == model]
         baseline = model_data[model_data["Setting"] == "Unwatermarked"].iloc[0]
 
-        for setting in ["KGW", "Gumbel"]:
-            if not model_data[model_data["Setting"] == setting].empty:
-                watermarked = model_data[model_data["Setting"] == setting].iloc[0]
+        for watermark_type in watermark_types:
+            if not model_data[model_data["Setting"] == watermark_type].empty:
+                watermarked = model_data[model_data["Setting"] == watermark_type].iloc[
+                    0
+                ]
 
                 # Calculate deltas
                 deltas = {
                     "Model Name": model,
-                    "Setting": setting,
+                    "Setting": watermark_type,
                 }
 
                 # Calculate absolute differences
@@ -43,6 +46,7 @@ def calculate_deltas(df: pd.DataFrame) -> pd.DataFrame:
 def plot(df: pd.DataFrame, output_path: str):
     # Calculate deltas
     delta_df = calculate_deltas(df)
+    watermark_types = list(set(df["Setting"].unique()) - {"Unwatermarked"})
 
     with prp.get_context(layout=prp.Layout.ICML, single_col=True) as (fig, ax):
         # Clear the main axis as we'll create our own subplots
@@ -68,10 +72,10 @@ def plot(df: pd.DataFrame, output_path: str):
 
         # Plot Unsafe changes
         x = np.arange(len(model_order))
-        width = 0.35
+        width = 0.15  # 0.35 is the default, use 0.20 for BoN plots
 
-        for i, setting in enumerate(["KGW", "Gumbel"]):
-            mask = delta_df["Setting"] == setting
+        for i, watermark_type in enumerate(watermark_types):
+            mask = delta_df["Setting"] == watermark_type
             data = [
                 delta_df[mask & (delta_df["Model Name"] == model)]["Delta_Unsafe"].iloc[
                     0
@@ -83,20 +87,20 @@ def plot(df: pd.DataFrame, output_path: str):
                 x + i * width,
                 data,
                 width,
-                label=get_short_watermark_name(setting),
-                color=get_color(setting),
+                label=get_short_watermark_name(watermark_type),
+                color=get_color(watermark_type),
                 edgecolor="black",
                 linewidth=0.5,
                 alpha=0.7,
-                hatch=get_pattern(setting),
+                hatch=get_pattern(watermark_type),
             )
 
         ax1.set_ylabel("Δ Unsafe Responses", fontsize=24)
         ax1.set_title("Change in Unsafe Responses", fontsize=22)
 
         # Plot Overrefusal changes
-        for i, setting in enumerate(["KGW", "Gumbel"]):
-            mask = delta_df["Setting"] == setting
+        for i, watermark_type in enumerate(watermark_types):
+            mask = delta_df["Setting"] == watermark_type
             data = [
                 delta_df[mask & (delta_df["Model Name"] == model)][
                     "Delta_Overrefusal"
@@ -108,12 +112,12 @@ def plot(df: pd.DataFrame, output_path: str):
                 x + i * width,
                 data,
                 width,
-                label=get_short_watermark_name(setting),
-                color=get_color(setting),
+                label=get_short_watermark_name(watermark_type),
+                color=get_color(watermark_type),
                 edgecolor="black",
                 linewidth=0.5,
                 alpha=0.7,
-                hatch=get_pattern(setting),
+                hatch=get_pattern(watermark_type),
             )
 
         ax2.set_ylabel("Δ Overrefusal Count", fontsize=24)
