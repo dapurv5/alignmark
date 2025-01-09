@@ -84,7 +84,7 @@ def create_legends(ax, markers, watermark_types):
         handles=sorted(
             setting_elements, key=lambda x: len(x.get_label()), reverse=True
         ),
-        bbox_to_anchor=(-0.08, 0.9),
+        bbox_to_anchor=(-0.08, 1.0),
         loc="upper left",
         borderaxespad=0.0,
         ncol=1,
@@ -112,9 +112,14 @@ def add_arrows(ax, model_points, models_to_connect):
             "KGW (BoN-2)" in model_points[model]
             and "Gumbel (BoN-2)" in model_points[model]
         ):
-            # Change this to BoN-4 for plotting for BoN-4
             kgw = model_points[model].get("KGW (BoN-2)")
             gumbel = model_points[model].get("Gumbel (BoN-2)")
+        elif (
+            "KGW (BoN-4)" in model_points[model]
+            and "Gumbel (BoN-4)" in model_points[model]
+        ):
+            kgw = model_points[model].get("KGW (BoN-4)")
+            gumbel = model_points[model].get("Gumbel (BoN-4)")
 
         if not (kgw and gumbel):
             continue
@@ -153,11 +158,6 @@ def plot(df: pd.DataFrame, markers: dict[str, str]):
         df.loc[idx, metrics] = df.loc[idx, metrics] / total
 
     watermark_types = df["Setting"].unique()
-    # colors = {
-    #     "KGW": "#ff7f0e",
-    #     "Gumbel": "#2ca02c",
-    #     "Unwatermarked": "#1f77b4",
-    # }
 
     with prp.get_context(layout=prp.Layout.ICML, single_col=True) as (fig, ax):
         tax = setup_ternary_plot(ax)

@@ -21,9 +21,11 @@
 # --model_name "Phi-3-mini-4k-instruct"
 
 # With BoN
-# python plots/plot_simplex.py \
-# --input_path $HOME/mint/wm-output40GB/outputs/watermarking-v1/simplex-data-BoN-normalized.tsv
-#--model_name "Phi-3-mini-4k-instruct"
+python plots/plot_simplex.py \
+--input_path $HOME/mint/wm-output40GB/outputs/watermarking-v1/simplex-data-BoN-4-normalized.tsv \
+--model_name "Phi-3-mini-4k-instruct"
+# --model_name "Qwen2.5-7B-Instruct"
+
 
 
 # Stacked bar chart
@@ -35,6 +37,6 @@
 # --output_path $HOME/mint/wm-output40GB/outputs/watermarking-v1/simplexdata_stackedbar.pdf
 
 # With BoN
-python plots/plot_stacked_bar_chart.py \
---input_path $HOME/mint/wm-output40GB/outputs/watermarking-v1/simplex-data-BoN.tsv \
---output_path $HOME/mint/wm-output40GB/outputs/watermarking-v1/simplexdata_BoN_stackedbar.pdf
+# python plots/plot_stacked_bar_chart.py \
+# --input_path $HOME/mint/wm-output40GB/outputs/watermarking-v1/simplex-data-BoN.tsv \
+# --output_path $HOME/mint/wm-output40GB/outputs/watermarking-v1/simplexdata_BoN_stackedbar.pdf

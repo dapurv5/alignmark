@@ -7,18 +7,7 @@ from fire import Fire
 from matplotlib.patches import ConnectionPatch
 from scipy.stats import dirichlet
 
-
-def extract_model_name(filepath):
-    filename = str(filepath)
-    if "Meta-Llama" in filename:
-        return "LLaMA-8B-Inst"
-    elif "Mistral" in filename:
-        return "Mistral-7B-Inst"
-    elif "Phi-3" in filename:
-        return "Phi-3-Mini-Inst"
-    elif "Qwen2" in filename:
-        return "Qwen2-7B-Inst"
-    return "Unknown"
+from plots.plot_utils import get_color, get_short_model_name, get_short_watermark_name
 
 
 def setup_ternary_plot(ax):
@@ -52,14 +41,14 @@ def add_vertex_labels(tax):
     tax.clear_matplotlib_ticks()
 
 
-def create_legends(ax, markers, colors):
+def create_legends(ax, markers, watermark_types):
     model_elements = [
         plt.Line2D(
             [0],
             [0],
             marker=marker,
             color="gray",
-            label=extract_model_name(model),
+            label=get_short_model_name(model),
             markersize=8,
             linestyle="None",
         )
@@ -71,12 +60,12 @@ def create_legends(ax, markers, colors):
             [0],
             [0],
             marker="o",
-            color=color,
-            label=f"{setting}",
+            color=get_color(watermark_type),
+            label=get_short_watermark_name(watermark_type),
             markersize=8,
             linestyle="None",
         )
-        for setting, color in colors.items()
+        for watermark_type in watermark_types
     ]
 
     leg1 = ax.legend(
@@ -137,8 +126,7 @@ def plot(df: pd.DataFrame, markers: dict[str, str]):
     for idx in df.index:
         total = df.loc[idx, metrics].sum()
         df.loc[idx, metrics] = df.loc[idx, metrics] / total
-
-    colors = {"KGW": "#ff7f0e", "Gumbel": "#2ca02c", "Unwatermarked": "#1f77b4"}
+    watermark_types = df["Setting"].unique()
 
     with prp.get_context(layout=prp.Layout.ICML, single_col=True) as (fig, ax):
         tax = setup_ternary_plot(ax)
@@ -149,20 +137,20 @@ def plot(df: pd.DataFrame, markers: dict[str, str]):
             model_points[model] = {}
 
             # First plot uncertainty regions
-            for setting in ["KGW", "Gumbel"]:
+            for watermark_type in watermark_types:
                 mask = (df_counts["Model Name"] == model) & (
-                    df_counts["Setting"] == setting
+                    df_counts["Setting"] == watermark_type
                 )
                 if not mask.any():
                     continue
 
                 # Get point counts and plot Dirichlet samples
                 point_counts = df_counts[mask].iloc[0][metrics]
-                plot_dirichlet_samples(tax, point_counts, colors[setting])
+                plot_dirichlet_samples(tax, point_counts, get_color(watermark_type))
 
             # Then plot the actual points
-            for setting in colors:
-                mask = (df["Model Name"] == model) & (df["Setting"] == setting)
+            for watermark_type in watermark_types:
+                mask = (df["Model Name"] == model) & (df["Setting"] == watermark_type)
                 if not mask.any():
                     continue
 
@@ -171,15 +159,15 @@ def plot(df: pd.DataFrame, markers: dict[str, str]):
                 scatter_points = tax.scatter(
                     [coords],
                     marker=markers[model],
-                    color=colors[setting],
+                    color=get_color(watermark_type),
                     s=30,
-                    label=f"{model} ({setting})",
+                    label=f"{model} ({watermark_type})",
                     zorder=10,
                 )
 
                 if ax.collections:
                     last_collection = ax.collections[-1]
-                    model_points[model][setting] = tuple(
+                    model_points[model][watermark_type] = tuple(
                         last_collection.get_offsets()[0]
                     )
 
@@ -187,11 +175,11 @@ def plot(df: pd.DataFrame, markers: dict[str, str]):
         add_arrows(
             ax,
             model_points,
-            ["Qwen2-7B-Instruct", "Phi-3-mini-4k-instruct"],
+            ["Qwen2-7B-Instruct", "Phi-3-mini-4k-instruct", "Qwen2.5-7B-Instruct"],
         )
 
         add_vertex_labels(tax)
-        create_legends(ax, markers, colors)
+        create_legends(ax, markers, watermark_types)
         plt.tight_layout(rect=[-0.1, 0, 1, 1])
         plt.show()
 
@@ -202,8 +190,27 @@ def add_arrows(ax, model_points, models_to_connect):
             continue
 
         start = model_points[model].get("Unwatermarked")
-        kgw = model_points[model].get("KGW")
-        gumbel = model_points[model].get("Gumbel")
+        if "KGW" in model_points[model] and "Gumbel" in model_points[model]:
+            kgw = model_points[model].get("KGW")
+            gumbel = model_points[model].get("Gumbel")
+        elif (
+            "KGW (Distort)" in model_points[model]
+            and "Gumbel (Dist-Free)" in model_points[model]
+        ):
+            kgw = model_points[model].get("KGW (Distort)")
+            gumbel = model_points[model].get("Gumbel (Dist-Free)")
+        elif (
+            "KGW (BoN-2)" in model_points[model]
+            and "Gumbel (BoN-2)" in model_points[model]
+        ):
+            kgw = model_points[model].get("KGW (BoN-2)")
+            gumbel = model_points[model].get("Gumbel (BoN-2)")
+        elif (
+            "KGW (BoN-4)" in model_points[model]
+            and "Gumbel (BoN-4)" in model_points[model]
+        ):
+            kgw = model_points[model].get("KGW (BoN-4)")
+            gumbel = model_points[model].get("Gumbel (BoN-4)")
 
         if not all([start, kgw, gumbel]):
             continue
@@ -249,8 +256,10 @@ def main(input_path: str, model_name: str = None):
 
     markers = {
         "Qwen2-7B-Instruct": "o",
+        "Qwen2.5-7B-Instruct": "o",
         "Phi-3-mini-4k-instruct": "s",
         "Meta-Llama-3.1-8B-Instruct": "^",
+        "Llama-3.1-8B-Instruct": "^",
         "Mistral-7B-Instruct-v0.3": "D",
     }
     markers = {k: v for k, v in markers.items() if k in df["Model Name"].unique()}
