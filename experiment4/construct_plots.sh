@@ -21,8 +21,8 @@
 # --model_name "Phi-3-mini-4k-instruct"
 
 # With BoN
-python plots/plot_simplex.py \
---input_path $HOME/mint/wm-output40GB/outputs/watermarking-v1/simplex-data-BoN-normalized.tsv
+# python plots/plot_simplex.py \
+# --input_path $HOME/mint/wm-output40GB/outputs/watermarking-v1/simplex-data-BoN-normalized.tsv
 #--model_name "Phi-3-mini-4k-instruct"
 
 
