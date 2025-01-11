@@ -72,7 +72,7 @@ def plot(df: pd.DataFrame, output_path: str):
 
         # Plot Unsafe changes
         x = np.arange(len(model_order))
-        width = 0.20  # IMPORTANT: 0.35 is the default, use 0.20 for BoN plots
+        width = 0.25  # IMPORTANT: 0.35 is the default, use 0.20 for BoN plots
 
         for i, watermark_type in enumerate(watermark_types):
             mask = delta_df["Setting"] == watermark_type
@@ -126,7 +126,7 @@ def plot(df: pd.DataFrame, output_path: str):
         # Customize both subplots with improved formatting
         for ax in [ax1, ax2]:
             # IMPORTANT: width/2 is the default, use 3 * width/2 for BoN plots
-            ax.set_xticks(x + 3 * width / 2)
+            ax.set_xticks(x + width / 2)
             ax.set_xticklabels(
                 [
                     get_short_model_name(model).replace("-Inst", "")

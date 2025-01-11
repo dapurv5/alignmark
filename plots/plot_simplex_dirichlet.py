@@ -84,7 +84,7 @@ def create_legends(ax, markers, watermark_types):
         handles=sorted(
             setting_elements, key=lambda x: len(x.get_label()), reverse=True
         ),
-        bbox_to_anchor=(-0.08, 1.0),
+        bbox_to_anchor=(-0.12, 1.0),
         loc="upper left",
         borderaxespad=0.0,
         ncol=1,
