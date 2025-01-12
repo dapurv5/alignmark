@@ -38,6 +38,7 @@ def plot_scores(
         # text was generated from the same model without any watermark
         # collect over seeds and dataset_names
         unwm_means = defaultdict(lambda: defaultdict(list))
+        all_unwm_scores = []
         for (watermark_type, dataset_name), _ in data.items():
             for seed, values in data[(watermark_type, dataset_name)].items():
                 print(f"Processing seed {seed} for {watermark_type} on {dataset_name}")
@@ -45,6 +46,8 @@ def plot_scores(
                 unwm_means[dataset_name][seed].append(
                     [np.mean(u) for u in unwatermarked_scores]
                 )
+                for u in unwatermarked_scores:
+                    all_unwm_scores.extend(u)
         for dataset_name in unwm_means:
             # color = next(colors)
             marker = next(markers)
@@ -105,6 +108,7 @@ def plot_scores(
                 std_wm_scores_by_watermark_type[watermark_type] = np.std(
                     all_watermarked_scores, axis=0
                 )
+                std_unwm_scores = np.std(all_unwm_scores, axis=0)
                 baseline_degradation = wm_means_avg[0] - unwm_means_avg_avg[0]
                 y_pred = (
                     unwm_means_avg_avg[0]
