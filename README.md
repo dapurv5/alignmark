@@ -27,6 +27,8 @@ bash experiment1/run_reward_scorer.sh
 
 # Run BoN
 bash experiment1/gen_best_of_n.sh 2
+bash experiment1/gen_best_of_n.sh 3
+bash experiment1/gen_best_of_n.sh 4
 
 # Plotting
 bash experiment1/construct_plots.sh

@@ -7,7 +7,7 @@ def read_jsonl(file_path: str) -> list[dict]:
         return [json.loads(line) for line in f]
 
 
-def parse_filename(filename: str) -> dict:
+def parse_filename(filename: str, rm_bon_suffix_from_wm_type: bool = False) -> dict:
     filename = filename.replace(".jsonl", "")
     filename_parts = filename.split("_")
     dataset_name = filename_parts[1]
@@ -21,7 +21,10 @@ def parse_filename(filename: str) -> dict:
         if part.startswith(("delta", "gamma", "ngram", "temperature")):
             key, value = part, filename_parts[idx + 1]
             params[key] = float(value) if key != "ngram" else int(value)
-
+    if rm_bon_suffix_from_wm_type:
+        assert "BoN" in watermark_type
+        params["BoN"] = int(watermark_type.split("-BoN-")[1])
+        watermark_type = watermark_type.split("-BoN-")[0]
     return {
         "dataset_name": dataset_name,
         "model_name": model_name,
@@ -108,6 +111,7 @@ def process_files(
     data: dict[
         tuple[str, str], dict[str, list[tuple[float, list[float], list[float]]]]
     ] = {}
+    rm_bon_suffix_from_wm_type: bool = param_name_to_plot == "BoN"
     for filename in os.listdir(input_dir):
         filename_ = filename
         # no _ allowed in dataset name
@@ -115,7 +119,7 @@ def process_files(
         if _is_scores_file(filename, score_name):
             print(f"Processing {filename}")
             file_path = os.path.join(input_dir, filename_)
-            parsed_info = parse_filename(filename)
+            parsed_info = parse_filename(filename, rm_bon_suffix_from_wm_type)
             if (
                 param_name_to_plot in parsed_info
                 and parsed_info["model_name"] == model_name_to_plot
@@ -179,6 +183,8 @@ def get_short_watermark_name(watermark_type: str) -> str:
         "Gumbel (BoN-3)": "Gumbel (BoN-3)",
         "KGW (BoN-4)": "KGW (BoN-4)",
         "Gumbel (BoN-4)": "Gumbel (BoN-4)",
+        "openai-theoretical": "Gumbel (theory)",
+        "maryland-theoretical": "KGW (theory)",
     }.get(watermark_type, watermark_type)
 
 
@@ -207,3 +213,13 @@ def get_pattern(watermark_type: str) -> str:
         return "...."
     else:
         return ""  # No pattern
+
+
+def get_short_param_name_to_plot(param_name_to_plot: str) -> str:
+    return {
+        "temperature": "Temperature",
+        "BoN": "Best-of-N",
+        "ngram": "N-gram",
+        "gamma": "Gamma",
+        "delta": "Delta",
+    }.get(param_name_to_plot, param_name_to_plot.capitalize())
