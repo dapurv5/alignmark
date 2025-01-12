@@ -41,7 +41,7 @@ python $HOME/MyCode/_MyResearchProjects/alignmark/plots/plot_score_bars.py \
     --output_dir $HOME/mint/wm-output40GB/outputs/watermarking-v1/exp_002_sweep_temp_truthfulqa_beam_rewards_armo_subset_truthfulness/plots \
     --score_name truthfulness
 
-# python $HOME/MyCode/_MyResearchProjects/alignmark/plots/plot_score_bars.py \
-#     --input_dir $HOME/mint/wm-output40GB/outputs/watermarking-v1/exp_002_sweep_temp_truthfulqa_beam_rewards_armo_subset_truthfulness_BoN  \
-#     --output_dir $HOME/mint/wm-output40GB/outputs/watermarking-v1/exp_002_sweep_temp_truthfulqa_beam_rewards_armo_subset_truthfulness_BoN/plots \
-#     --score_name truthfulness
+python $HOME/MyCode/_MyResearchProjects/alignmark/plots/plot_score_bars.py \
+    --input_dir $HOME/mint/wm-output40GB/outputs/watermarking-v1/exp_002_sweep_temp_truthfulqa_beam_rewards_armo_subset_truthfulness_BoN  \
+    --output_dir $HOME/mint/wm-output40GB/outputs/watermarking-v1/exp_002_sweep_temp_truthfulqa_beam_rewards_armo_subset_truthfulness_BoN/plots \
+    --score_name truthfulness
