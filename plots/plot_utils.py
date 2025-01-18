@@ -14,9 +14,14 @@ def parse_filename(filename: str, rm_bon_suffix_from_wm_type: bool = False) -> d
     model_name = filename_parts[2]
     watermark_type = filename_parts[3]
     seed = filename_parts[4]
+    start_idx = 5
+    if seed in ["delta", "gamma", "ngram", "temperature"]:
+        # The filename is old filename format and there is no seed
+        seed = -1
+        start_idx = 4
     params = {}
-    idx = 4
-    for part in filename_parts[5:]:
+    idx = start_idx - 1
+    for part in filename_parts[start_idx:]:
         idx += 1
         if part.startswith(("delta", "gamma", "ngram", "temperature")):
             key, value = part, filename_parts[idx + 1]
