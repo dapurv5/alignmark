@@ -7,7 +7,7 @@ set -o errexit -o xtrace -o nounset
 CLUSTER="AWS"  # "AWS" or "WULVER"
 EXP_NAME=${1:-"exp_001_sweep_temp_hhrlhf_beam"}
 NUM_GPUS_PER_PROCESS=1
-NUM_PROCESSES=4
+NUM_PROCESSES=8
 REWARD_MODEL="RLHFlow/ArmoRM-Llama3-8B-v0.1"  # llm-blender/PairRM | RLHFlow/ArmoRM-Llama3-8B-v0.1
 REWARD_MODEL_SHORTFORM="armo"  # blender | armo
 TEXT_FIELD="prompt"
@@ -18,7 +18,7 @@ if [ "$CLUSTER" == "WULVER" ]; then
     GPU_START_ID=0
 else
     EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1"
-    GPU_START_ID=4
+    GPU_START_ID=0
 fi
 python utils/download_model.py $REWARD_MODEL
 
