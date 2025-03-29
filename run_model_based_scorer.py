@@ -264,6 +264,8 @@ def compute_parallel(
                     reward_model,
                     output_dir,
                     device_to_use,
+                    file_name_suffix,
+                    score_field_name,
                 ),
             )
             p.daemon = False  # Ensure process isn't daemonic

@@ -4,7 +4,7 @@ set -o errexit -o xtrace -o nounset
 
 # Values to be set by user
 ###################
-CLUSTER="AWS"  # "AWS" or "WULVER"
+CLUSTER="WULVER"  # "AWS" or "WULVER"
 EXP_NAME=${1:-"exp_001_sweep_temp_hhrlhf_beam_rewards_armo"}
 NUM_GPUS_PER_PROCESS=1
 NUM_PROCESSES=8
@@ -18,11 +18,12 @@ SCORE_FIELD_NAME="ppl_score"
 if [ "$CLUSTER" == "WULVER" ]; then
     EXP_DIR_PREFIX="/project/phan/av787/projs/watermarking-v1/outputs"
     GPU_START_ID=0
+    NUM_PROCESSES=1
 else
     EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1"
     GPU_START_ID=0
 fi
-python utils/download_model.py $SCORER_MODEL
+# python utils/download_model.py $SCORER_MODEL
 
 OUTPUT_DIR=$EXP_DIR_PREFIX/"${EXP_NAME}_${SCORER_MODEL_SHORTFORM}"
 
