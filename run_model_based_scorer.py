@@ -6,7 +6,7 @@ import os
 import fire
 import numpy as np
 
-from reward_scorer import RewardScorerRegistry
+from model_based_scorer import ModelBasedScorerRegistry
 from utils import get_device_to_use
 
 logging.basicConfig(level=logging.INFO)
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 multiprocessing.set_start_method("spawn", force=True)
 
 
-def run_reward_scorer(
+def run_model_based_scorer(
     input_path: str,
     output_path: str,
     reward_model: str = "llm-blender/PairRM",
@@ -25,6 +25,8 @@ def run_reward_scorer(
     gpu_start_id: int = 0,
     debug_mode: bool = False,
     text_field: str = "prompt",
+    file_name_suffix: str = "_rewards",
+    score_field_name: str = "reward_score",
 ):
 
     def process_single_file(
@@ -39,10 +41,13 @@ def run_reward_scorer(
         output_dir = os.path.dirname(output_path)
 
         if num_processes == 1 and num_gpus_per_process == 0:
-            scorer = RewardScorerRegistry.get(reward_model)(
-                text_field=text_field, device="cpu"
+            scorer = ModelBasedScorerRegistry.get(reward_model)(
+                text_field=text_field,
+                file_name_suffix=file_name_suffix,
+                score_field_name=score_field_name,
+                device="cpu",
             )
-            scorer.compute_rewards(input_path, output_path)
+            scorer.compute_score(input_path, output_path)
             return
 
         # Split file and process in parallel if using GPUs
@@ -93,6 +98,8 @@ def run_reward_scorer(
                 output_dir,
                 gpu_start_id,
                 debug_mode,
+                file_name_suffix,
+                score_field_name,
             )
 
         finally:
@@ -116,7 +123,7 @@ def run_reward_scorer(
             os.makedirs(output_path, exist_ok=True)
 
         filelist = glob.glob(os.path.join(input_path, "*.jsonl"))
-        filelist = [f for f in filelist if not f.endswith("_rewards.jsonl")]
+        filelist = [f for f in filelist if not f.endswith(file_name_suffix + ".jsonl")]
 
         # Adjust number of processes if needed
         num_processes = min(num_processes, len(filelist))
@@ -161,6 +168,8 @@ def process_func(
     reward_model: str,
     output_dir: str,
     device_to_use: str,
+    file_name_suffix: str,
+    score_field_name: str,
 ):
     try:
         process_id = os.getpid()
@@ -173,15 +182,19 @@ def process_func(
         os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
         print(f"Process {process_id}: Loading model {reward_model}")
-        scorer = RewardScorerRegistry.get(reward_model)(
-            text_field=text_field, device=device_to_use, gpu_ids=gpu_ids_to_use
+        scorer = ModelBasedScorerRegistry.get(reward_model)(
+            text_field=text_field,
+            file_name_suffix=file_name_suffix,
+            score_field_name=score_field_name,
+            device=device_to_use,
+            gpu_ids=gpu_ids_to_use,
         )
         for input_file in files:
             logger.info(f"Process {process_id}: Processing {input_file}")
             input_filename = os.path.basename(input_file)
             output_filename = (
                 os.path.splitext(input_filename)[0]
-                + "_rewards"
+                + file_name_suffix
                 + os.path.splitext(input_filename)[1]
             )
             output_filename = os.path.join(output_dir, output_filename)
@@ -190,7 +203,7 @@ def process_func(
                 and sum(1 for _ in open(input_file))
                 != sum(1 for _ in open(output_filename))
             ):
-                scorer.compute_rewards(input_file, output_filename)
+                scorer.compute_score(input_file, output_filename)
                 logger.info(f"Process {process_id}: Completed {input_file}")
     except Exception as e:
         logger.error(
@@ -208,6 +221,8 @@ def compute_parallel(
     output_dir,
     gpu_start_id: int = 0,
     debug_mode: bool = False,
+    file_name_suffix: str = "_rewards",
+    score_field_name: str = "reward_score",
 ):
     files_to_process = np.array_split(filelist, num_processes)
     device_to_use = get_device_to_use(num_gpus_per_process, num_processes)
@@ -227,6 +242,8 @@ def compute_parallel(
                 reward_model,
                 output_dir,
                 device_to_use,
+                file_name_suffix,
+                score_field_name,
             )
     else:
         print(f"Launching {num_processes} processes...")
@@ -265,4 +282,4 @@ def compute_parallel(
 
 
 if __name__ == "__main__":
-    fire.Fire(run_reward_scorer)
+    fire.Fire(run_model_based_scorer)

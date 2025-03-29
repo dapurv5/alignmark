@@ -5,14 +5,14 @@ set -o errexit -o xtrace -o nounset
 # Values to be set by user
 ###################
 CLUSTER="AWS"  # "AWS" or "WULVER"
-EXP_NAME=${1:-"exp_001_sweep_temp_hhrlhf_beam"}
+EXP_NAME=${1:-"exp_001_sweep_temp_hhrlhf_beam_rewards_armo"}
 NUM_GPUS_PER_PROCESS=1
 NUM_PROCESSES=8
-REWARD_MODEL="RLHFlow/ArmoRM-Llama3-8B-v0.1"  # llm-blender/PairRM | RLHFlow/ArmoRM-Llama3-8B-v0.1
-REWARD_MODEL_SHORTFORM="armo"  # blender | armo
+SCORER_MODEL="PPL"  # llm-blender/PairRM | RLHFlow/ArmoRM-Llama3-8B-v0.1
+SCORER_MODEL_SHORTFORM="ppl"  # blender | armo
 TEXT_FIELD="prompt"
-FILE_NAME_SUFFIX="_rewards"
-SCORE_FIELD_NAME="reward_score"
+FILE_NAME_SUFFIX="_ppl"
+SCORE_FIELD_NAME="ppl_score"
 ###################
 
 if [ "$CLUSTER" == "WULVER" ]; then
@@ -22,14 +22,14 @@ else
     EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1"
     GPU_START_ID=0
 fi
-python utils/download_model.py $REWARD_MODEL
+python utils/download_model.py $SCORER_MODEL
 
-OUTPUT_DIR=$EXP_DIR_PREFIX/"${EXP_NAME}_rewards_${REWARD_MODEL_SHORTFORM}"
+OUTPUT_DIR=$EXP_DIR_PREFIX/"${EXP_NAME}_${SCORER_MODEL_SHORTFORM}"
 
 python run_model_based_scorer.py \
     --input_path $EXP_DIR_PREFIX/$EXP_NAME \
     --output_path $OUTPUT_DIR \
-    --reward_model $REWARD_MODEL \
+    --scorer_model $SCORER_MODEL \
     --num_processes $NUM_PROCESSES \
     --num_gpus_per_process $NUM_GPUS_PER_PROCESS \
     --gpu_start_id $GPU_START_ID \
