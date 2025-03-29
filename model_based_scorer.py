@@ -271,9 +271,8 @@ class PPLScorer(ModelBasedScorerBase):
 
             # Calculate perplexity
             with torch.no_grad():
-                outputs = self.model(**encodings)
+                outputs = self.model(**encodings, labels=encodings["input_ids"])
                 loss = outputs.loss
-
                 # Perplexity is e^loss
                 ppl = torch.exp(loss).item()
 

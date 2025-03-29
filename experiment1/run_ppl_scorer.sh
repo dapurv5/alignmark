@@ -23,7 +23,7 @@ else
     EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1"
     GPU_START_ID=0
 fi
-# python utils/download_model.py $SCORER_MODEL
+python utils/download_model.py $SCORER_MODEL
 
 OUTPUT_DIR=$EXP_DIR_PREFIX/"${EXP_NAME}_${SCORER_MODEL_SHORTFORM}"
 
