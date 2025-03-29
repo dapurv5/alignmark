@@ -137,6 +137,8 @@ def run_model_based_scorer(
             output_path,
             gpu_start_id,
             debug_mode,
+            file_name_suffix,
+            score_field_name,
         )
 
     # Main processing logic
