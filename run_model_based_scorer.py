@@ -19,7 +19,7 @@ multiprocessing.set_start_method("spawn", force=True)
 def run_model_based_scorer(
     input_path: str,
     output_path: str,
-    reward_model: str = "llm-blender/PairRM",
+    scorer_model: str = "llm-blender/PairRM",
     num_processes: int = 1,
     num_gpus_per_process: int = 0,
     gpu_start_id: int = 0,
@@ -41,7 +41,7 @@ def run_model_based_scorer(
         output_dir = os.path.dirname(output_path)
 
         if num_processes == 1 and num_gpus_per_process == 0:
-            scorer = ModelBasedScorerRegistry.get(reward_model)(
+            scorer = ModelBasedScorerRegistry.get(scorer_model)(
                 text_field=text_field,
                 file_name_suffix=file_name_suffix,
                 score_field_name=score_field_name,
@@ -58,7 +58,7 @@ def run_model_based_scorer(
                 num_processes,
                 num_gpus_per_process,
                 gpu_start_id,
-                reward_model,
+                scorer_model,
             )
 
     def process_file_in_parallel(
@@ -68,7 +68,7 @@ def run_model_based_scorer(
         num_processes: int,
         num_gpus_per_process: int,
         gpu_start_id: int,
-        reward_model: str,
+        scorer_model: str,
     ):
         """Split input file into parts and process them in parallel"""
         temp_dir = os.path.join(output_dir, "file_parts")
@@ -94,7 +94,7 @@ def run_model_based_scorer(
                 text_field,
                 num_processes,
                 num_gpus_per_process,
-                reward_model,
+                scorer_model,
                 output_dir,
                 gpu_start_id,
                 debug_mode,
@@ -133,7 +133,7 @@ def run_model_based_scorer(
             text_field,
             num_processes,
             num_gpus_per_process,
-            reward_model,
+            scorer_model,
             output_path,
             gpu_start_id,
             debug_mode,
@@ -165,7 +165,7 @@ def process_func(
     files,
     text_field,
     gpu_ids_to_use: list[int],
-    reward_model: str,
+    scorer_model: str,
     output_dir: str,
     device_to_use: str,
     file_name_suffix: str,
@@ -181,8 +181,8 @@ def process_func(
         )
         os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-        print(f"Process {process_id}: Loading model {reward_model}")
-        scorer = ModelBasedScorerRegistry.get(reward_model)(
+        print(f"Process {process_id}: Loading model {scorer_model}")
+        scorer = ModelBasedScorerRegistry.get(scorer_model)(
             text_field=text_field,
             file_name_suffix=file_name_suffix,
             score_field_name=score_field_name,
@@ -217,7 +217,7 @@ def compute_parallel(
     text_field,
     num_processes,
     num_gpus_per_process,
-    reward_model,
+    scorer_model,
     output_dir,
     gpu_start_id: int = 0,
     debug_mode: bool = False,
@@ -239,7 +239,7 @@ def compute_parallel(
                 files_to_process_for_this_process,
                 text_field,
                 gpu_ids_for_this_process,
-                reward_model,
+                scorer_model,
                 output_dir,
                 device_to_use,
                 file_name_suffix,
@@ -261,7 +261,7 @@ def compute_parallel(
                     files_to_process_for_this_process,
                     text_field,
                     gpu_ids_for_this_process,
-                    reward_model,
+                    scorer_model,
                     output_dir,
                     device_to_use,
                     file_name_suffix,
