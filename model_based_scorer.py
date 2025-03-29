@@ -220,7 +220,7 @@ class ArmoRewardScorer(ModelBasedScorerBase):
         return res
 
 
-@ModelBasedScorerRegistry.register("PPL")
+@ModelBasedScorerRegistry.register("meta-llama/Llama-3.1-8B")
 class PPLScorer(ModelBasedScorerBase):
     def __init__(
         self,

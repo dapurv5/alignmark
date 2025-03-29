@@ -47,7 +47,7 @@ def run_model_based_scorer(
                 score_field_name=score_field_name,
                 device="cpu",
             )
-            scorer.compute_score(input_path, output_path)
+            scorer.compute_scores(input_path, output_path)
             return
 
         # Split file and process in parallel if using GPUs
@@ -203,7 +203,7 @@ def process_func(
                 and sum(1 for _ in open(input_file))
                 != sum(1 for _ in open(output_filename))
             ):
-                scorer.compute_score(input_file, output_filename)
+                scorer.compute_scores(input_file, output_filename)
                 logger.info(f"Process {process_id}: Completed {input_file}")
     except Exception as e:
         logger.error(
