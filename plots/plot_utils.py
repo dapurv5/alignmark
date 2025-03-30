@@ -76,8 +76,12 @@ def _sort_data_by_params_and_keys(data: dict) -> dict:
 
 def _is_scores_file(filename: str, score_name: str) -> bool:
     # Needed for reward and rewards discrepancy
-    return filename.endswith(f"_{score_name}.jsonl") or filename.endswith(
-        f"_{score_name}s.jsonl"
+    # TODO: This is brittle, we should use regex to match the score_name
+    return (
+        filename.endswith(f"_{score_name}.jsonl")
+        or filename.endswith(f"_{score_name}s.jsonl")
+        or filename.endswith(f"_{score_name}_ppl.jsonl")
+        or filename.endswith(f"_{score_name}s_ppl.jsonl")
     )
 
 
