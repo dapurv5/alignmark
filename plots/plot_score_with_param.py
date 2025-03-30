@@ -123,7 +123,7 @@ def plot_scores(
                     unwm_means_avg_avg[0]
                     + baseline_degradation
                     + std_wm_scores_by_watermark_type[watermark_type]
-                    * 0.5
+                    * 0.67
                     * np.sqrt(np.log(N_arr))
                 )
                 print(
