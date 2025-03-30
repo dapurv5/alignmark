@@ -1,3 +1,4 @@
+import math
 import os
 from collections import defaultdict
 from itertools import cycle
@@ -110,12 +111,20 @@ def plot_scores(
                 )
                 std_unwm_scores = np.std(all_unwm_scores, axis=0)
                 baseline_degradation = wm_means_avg[0] - unwm_means_avg_avg[0]
+                N_arr = np.array(wm_strengths)
+                # y_pred = (
+                #     unwm_means_avg_avg[0]
+                #     + baseline_degradation
+                #     + std_wm_scores_by_watermark_type[watermark_type]
+                #     * (1 - np.exp(1 - 9 / N_arr) ** np.ceil(N_arr / 3))
+                #     * np.sqrt(np.log(N_arr))
+                # )
                 y_pred = (
                     unwm_means_avg_avg[0]
                     + baseline_degradation
                     + std_wm_scores_by_watermark_type[watermark_type]
                     * 0.5
-                    * np.sqrt(np.log(wm_strengths))
+                    * np.sqrt(np.log(N_arr))
                 )
                 print(
                     f"Baseline degradation for {watermark_type}: {baseline_degradation}"
