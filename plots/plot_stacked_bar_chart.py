@@ -70,6 +70,11 @@ def plot(df: pd.DataFrame, output_path: str):
             .index
         )
 
+        # Sort models by size (uncomment for scaling plots)
+        # model_order = sorted(
+        #     model_order,
+        # )
+
         # Plot Unsafe changes
         x = np.arange(len(model_order))
         width = 0.25  # IMPORTANT: 0.35 is the default, use 0.20 for BoN plots

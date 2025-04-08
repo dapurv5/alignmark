@@ -96,7 +96,19 @@ def plot_safety_comparison(all_models_data, output_path):
         #         ),
         #     )
         # )
-
+        # Sort all_models_data by model size obtained by parsing the model name e.g. Qwen2.5-72B-Instruct -> 72B, Qwen2.5-14B -> 14B
+        all_models_data = dict(
+            sorted(
+                all_models_data.items(),
+                key=lambda x: float(
+                    "".join(
+                        c
+                        for c in next(p for p in x[0].split("-") if "B" in p)
+                        if c.isdigit() or c == "."
+                    )
+                ),
+            )
+        )
         for idx, (model_name, model_data) in enumerate(all_models_data.items()):
             ax = axes[idx]
 

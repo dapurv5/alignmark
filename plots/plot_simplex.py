@@ -190,7 +190,13 @@ def plot(df: pd.DataFrame, markers: dict[str, str]):
         add_arrows(
             ax,
             model_points,
-            ["Qwen2-7B-Instruct", "Phi-3-mini-4k-instruct", "Qwen2.5-7B-Instruct"],
+            [
+                "Qwen2-7B-Instruct",
+                "Phi-3-mini-4k-instruct",
+                "Qwen2.5-7B-Instruct",
+                "Qwen2.5-3B-Instruct",
+                "Qwen2.5-1.5B-Instruct",
+            ],
         )
         add_vertex_labels(tax)
         create_legends(ax, markers, watermark_types)
@@ -226,6 +232,8 @@ def main(input_path: str, model_name: str = None):
     markers = {
         "Qwen2-7B-Instruct": "o",
         "Qwen2.5-7B-Instruct": "o",
+        "Qwen2.5-3B-Instruct": "x",
+        "Qwen2.5-1.5B-Instruct": "*",
         "Phi-3-mini-4k-instruct": "s",
         "Meta-Llama-3.1-8B-Instruct": "^",
         "Llama-3.1-8B-Instruct": "^",

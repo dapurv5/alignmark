@@ -184,6 +184,8 @@ def main(input_dir: str, output_dir: str = None, score_name: str = "reward"):
             model_data[watermark_type] = sum(scores) / len(scores)
 
     output_file = output_path / f"score_comparison_all_models_{score_name}.png"
+    # Sort all_models_data by model name
+    all_models_data = dict(sorted(all_models_data.items(), key=lambda x: x[0]))
     plot_score_comparison(all_models_data, output_file, score_name)
     print(f"Generated combined plot at {output_file}")
 
