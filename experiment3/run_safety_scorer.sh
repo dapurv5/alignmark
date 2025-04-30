@@ -15,7 +15,7 @@ if [ "$CLUSTER" = "WULVER" ]; then
 elif [ "$CLUSTER" = "AWS" ]; then
     EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1"
 else
-    EXP_DIR_PREFIX="/Users/averma239/MyCode/_MyResearchProjects/wm-output40GB/outputs/watermarking-v1"
+    EXP_DIR_PREFIX="$HOME/MyCode/_MyResearchProjects/wm-output40GB/outputs/watermarking-v1"
 fi
 
 python run_safety_scorer.py \
