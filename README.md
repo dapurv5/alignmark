@@ -7,8 +7,9 @@
 </div>
 
 
-[![arXiv](https://dida.do/img/containers/assets/news/image-2.png/c0ece7988eacc28a0cdab115441d63e4.png)](https://openreview.net/pdf?id=SIBkIV48gF)
-
+<a href="https://openreview.net/pdf?id=SIBkIV48gF">
+    <img src="https://dida.do/img/containers/assets/news/image-2.png/c0ece7988eacc28a0cdab115441d63e4.png" alt="arXiv" width="100px">
+</a>
 
 
 ### Cluster Startup Setup Commands
