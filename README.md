@@ -1,3 +1,13 @@
+# Watermarking Degrades Alignment in Language Models: Analysis and Mitigation
+> Mitigating alignment degradation in watermarked Large Language Models (LLMs).
+
+<div align="center">
+	<img width="200" height="200" src="fig/alignmark.png" alt="Watermarking Degrades Alignment in LLMs">
+<br>
+</div>
+
+
+[![arXiv](https://dida.do/img/containers/assets/news/image-2.png/c0ece7988eacc28a0cdab115441d63e4.png)](https://openreview.net/pdf?id=SIBkIV48gF)
 
 
 
