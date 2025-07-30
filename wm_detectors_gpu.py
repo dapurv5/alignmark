@@ -1,7 +1,7 @@
 # Reference: https://github.com/facebookresearch/three_bricks
 
 
-from typing import List
+from typing import Any, List
 
 import numpy as np
 import torch
@@ -11,12 +11,12 @@ from scipy import special
 class WmDetector:
     def __init__(
         self,
-        tokenizer,
+        tokenizer: Any,
         ngram: int = 1,
         seed: int = 0,
         seeding: str = "hash",
         salt_key: int = 35317,
-        vocab_size: int = None,
+        vocab_size: int | None = None,
     ):
         # model config
         self.tokenizer = tokenizer
@@ -40,7 +40,7 @@ class WmDetector:
             self.rng = torch.Generator()
         self.rng.manual_seed(self.seed)
 
-    def hashint(self, integer_tensor: torch.LongTensor) -> torch.LongTensor:
+    def hashint(self, integer_tensor: torch.Tensor) -> torch.Tensor:
         """Adapted from https://github.com/jwkirchenbauer/lm-watermarking"""
         return self.hashtable[integer_tensor.cpu() % len(self.hashtable)]
 
@@ -54,34 +54,36 @@ class WmDetector:
             for i in input_ids:
                 seed = (seed * self.salt_key + i) % (2**64 - 1)
         elif self.seeding == "additive":
-            seed = self.salt_key * torch.sum(input_ids)
-            seed = self.hashint(seed)
+            input_tensor = torch.tensor(input_ids, dtype=torch.long)
+            seed_sum = self.salt_key * torch.sum(input_tensor)
+            seed = self.hashint(seed_sum.unsqueeze(0))
         elif self.seeding == "skip":
-            seed = self.salt_key * input_ids[0]
-            seed = self.hashint(seed)
+            seed_val = self.salt_key * input_ids[0]
+            seed = self.hashint(torch.tensor([seed_val], dtype=torch.long))
         elif self.seeding == "min":
-            seed = self.hashint(self.salt_key * input_ids)
-            seed = torch.min(seed)
-        return seed
+            input_tensor = torch.tensor(input_ids, dtype=torch.long)
+            seed_tensor = self.hashint(self.salt_key * input_tensor)
+            seed = torch.min(seed_tensor)
+        return int(seed)
 
     def aggregate_scores(
-        self, scores: List[List[np.array]], aggregation: str = "mean"
-    ) -> List[float]:
+        self, scores: List[List[np.ndarray]], aggregation: str = "mean"
+    ) -> List[np.ndarray]:
         """Aggregate scores along a text."""
-        scores = np.asarray(scores)
+        scores_array = np.asarray(scores, dtype=object)
         if aggregation == "sum":
-            return [ss.sum(axis=0) for ss in scores]
+            return [np.asarray(ss).sum(axis=0) for ss in scores]
         elif aggregation == "mean":
             return [
                 (
-                    ss.mean(axis=0)
-                    if ss.shape[0] != 0
+                    np.asarray(ss).mean(axis=0)
+                    if len(ss) != 0
                     else np.ones(shape=(self.vocab_size))
                 )
                 for ss in scores
             ]
         elif aggregation == "max":
-            return [ss.max(axis=0) for ss in scores]
+            return [np.asarray(ss).max(axis=0) for ss in scores]
         else:
             raise ValueError(f"Aggregation {aggregation} not supported.")
 
@@ -89,9 +91,9 @@ class WmDetector:
         self,
         texts: List[str],
         scoring_method: str = "none",
-        ntoks_max: int = None,
+        ntoks_max: int | None = None,
         payload_max: int = 0,
-    ) -> List[np.array]:
+    ) -> List[List[np.ndarray]]:
         """
         Get score increment for each token in list of texts.
         Args:
@@ -135,7 +137,9 @@ class WmDetector:
             score_lists.append(rts)
         return score_lists
 
-    def get_pvalues(self, scores: List[np.array], eps: float = 1e-200) -> np.array:
+    def get_pvalues(
+        self, scores: List[List[np.ndarray]], eps: float = 1e-200
+    ) -> np.ndarray:
         """
         Get p-value for each text.
         Args:
@@ -144,11 +148,16 @@ class WmDetector:
             pvalues: np array of p-values for each text and payload
         """
         pvalues = []
-        scores = np.asarray(scores)  # bsz x ntoks x payload_max
+        scores_array = np.asarray(
+            [np.asarray(s) if s else np.array([]) for s in scores], dtype=object
+        )  # bsz x ntoks x payload_max
         for ss in scores:
-            ntoks = ss.shape[0]
+            ss_array = np.asarray(ss) if ss else np.array([])
+            ntoks = ss_array.shape[0] if ss_array.size > 0 else 0
             scores_by_payload = (
-                ss.sum(axis=0) if ntoks != 0 else np.zeros(shape=ss.shape[-1])
+                ss_array.sum(axis=0)
+                if ntoks != 0
+                else np.zeros(shape=ss_array.shape[-1] if ss_array.size > 0 else 1)
             )  # payload_max
             pvalues_by_payload = [
                 self.get_pvalue(score, ntoks, eps=eps) for score in scores_by_payload
@@ -164,15 +173,15 @@ class WmDetector:
         for ss in scores:
             cum_score += ss
             cum_toks += 1
-            pvalue = self.get_pvalue(cum_score, cum_toks)
+            pvalue = self.get_pvalue(cum_score, cum_toks, eps=1e-200)
             pvalues.append(pvalue)
         return pvalues
 
-    def score_tok(self, ngram_tokens: List[int], token_id: int):
+    def score_tok(self, ngram_tokens: List[int], token_id: int) -> torch.Tensor:
         """for each token in the text, compute the score increment"""
         raise NotImplementedError
 
-    def get_pvalue(self, score: float, ntoks: int, eps: float):
+    def get_pvalue(self, score: float, ntoks: int, eps: float) -> float:
         """compute the p-value for a couple of score and number of tokens"""
         raise NotImplementedError
 
@@ -181,20 +190,20 @@ class MarylandDetector(WmDetector):
 
     def __init__(
         self,
-        tokenizer,
+        tokenizer: Any,
         ngram: int = 1,
         seed: int = 0,
         seeding: str = "hash",
         salt_key: int = 35317,
         gamma: float = 0.5,
         delta: float = 1.0,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(tokenizer, ngram, seed, seeding, salt_key, **kwargs)
         self.gamma = gamma
         self.delta = delta
 
-    def score_tok(self, ngram_tokens, token_id):
+    def score_tok(self, ngram_tokens: List[int], token_id: int) -> torch.Tensor:
         """
         score_t = 1 if token_id in greenlist else 0
         The last line shifts the scores by token_id.
@@ -213,7 +222,7 @@ class MarylandDetector(WmDetector):
         scores[greenlist] = 1
         return scores.roll(-token_id)
 
-    def get_pvalue(self, score: int, ntoks: int, eps: float):
+    def get_pvalue(self, score: float, ntoks: int, eps: float) -> float:
         """from cdf of a binomial distribution"""
         pvalue = special.betainc(score, 1 + ntoks - score, self.gamma)
         return max(pvalue, eps)
@@ -223,20 +232,20 @@ class MarylandDetectorZ(WmDetector):
 
     def __init__(
         self,
-        tokenizer,
+        tokenizer: Any,
         ngram: int = 1,
         seed: int = 0,
         seeding: str = "hash",
         salt_key: int = 35317,
         gamma: float = 0.5,
         delta: float = 1.0,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(tokenizer, ngram, seed, seeding, salt_key, **kwargs)
         self.gamma = gamma
         self.delta = delta
 
-    def score_tok(self, ngram_tokens, token_id):
+    def score_tok(self, ngram_tokens: List[int], token_id: int) -> torch.Tensor:
         """same as MarylandDetector but using zscore"""
         seed = self.get_seed_rng(ngram_tokens)
         self.rng.manual_seed(seed)
@@ -248,7 +257,7 @@ class MarylandDetectorZ(WmDetector):
         scores[greenlist] = 1
         return scores.roll(-token_id)
 
-    def get_pvalue(self, score: int, ntoks: int, eps: float):
+    def get_pvalue(self, score: float, ntoks: int, eps: float) -> float:
         """from cdf of a normal distribution"""
         zscore = (score - self.gamma * ntoks) / np.sqrt(
             self.gamma * (1 - self.gamma) * ntoks
@@ -261,16 +270,16 @@ class PFDetector(WmDetector):
 
     def __init__(
         self,
-        tokenizer,
+        tokenizer: Any,
         ngram: int = 1,
         seed: int = 0,
         seeding: str = "hash",
         salt_key: int = 35317,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(tokenizer, ngram, seed, seeding, salt_key, **kwargs)
 
-    def score_tok(self, ngram_tokens, token_id):
+    def score_tok(self, ngram_tokens: List[int], token_id: int) -> torch.Tensor:
         """
         score_t = -log(1 - rt[token_id]])
         The last line shifts the scores by token_id.
@@ -292,16 +301,16 @@ class OpenaiDetector(WmDetector):
 
     def __init__(
         self,
-        tokenizer,
+        tokenizer: Any,
         ngram: int = 1,
         seed: int = 0,
         seeding: str = "hash",
         salt_key: int = 35317,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(tokenizer, ngram, seed, seeding, salt_key, **kwargs)
 
-    def score_tok(self, ngram_tokens, token_id):
+    def score_tok(self, ngram_tokens: List[int], token_id: int) -> torch.Tensor:
         """
         score_t = -log(1 - rt[token_id]])
         The last line shifts the scores by token_id.
@@ -326,16 +335,16 @@ class OpenaiDetectorZ(WmDetector):
 
     def __init__(
         self,
-        tokenizer,
+        tokenizer: Any,
         ngram: int = 1,
         seed: int = 0,
         seeding: str = "hash",
         salt_key: int = 35317,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(tokenizer, ngram, seed, seeding, salt_key, **kwargs)
 
-    def score_tok(self, ngram_tokens, token_id):
+    def score_tok(self, ngram_tokens: List[int], token_id: int) -> torch.Tensor:
         """same as OpenaiDetector but using zscore"""
         seed = self.get_seed_rng(ngram_tokens)
         self.rng.manual_seed(seed)
