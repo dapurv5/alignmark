@@ -29,8 +29,8 @@ list_of_models=("meta-llama/Llama-3.1-8B-Instruct" \
 for model in "${list_of_models[@]}"; do
     echo "Running Maryland WM for model: $model"
     export CLEAN_MODEL_AFTER_RUN="false"
-    bash experiment2/sweep_maryland_beam.sh $model
+    bash experiment2/run_maryland.sh $model
     echo "Running OpenAI WM for model: $model"
     export CLEAN_MODEL_AFTER_RUN="true"
-    bash experiment2/sweep_openai_beam.sh $model
+    bash experiment2/run_openai.sh $model
 done
