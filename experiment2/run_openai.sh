@@ -23,7 +23,7 @@ fi
 SIMPLE_MODEL_NAME="${MODEL_NAME##*/}"  # meta-llama/Llama-3.2-1B-Instruct -> Llama-3.2-1B-Instruct
 OUTPUT_FILENAME="out_truthfulqa_${SIMPLE_MODEL_NAME}_openai_${SEED}_temperature_1.0_ngram_4.jsonl"
 
-python scripts/generate_wm_and_unwm.py \
+python $VLLM_WATERMARK_DIR/scripts/generate_wm_and_unwm.py \
   --input_path "truthfulqa/truthful_qa" \
   --hf_name "generation" \
   --hf_split "validation" \
