@@ -12,7 +12,12 @@ def run_safety_scorer(
     scorer_name: str = "llama-guard",
     batch_size: int = 16,
 ):
-    scorer = SafetyScorerRegistry.get(scorer_name)(batch_size=batch_size)
+    scorer_class = SafetyScorerRegistry.get(scorer_name)
+    if scorer_class is None:
+        raise KeyError(
+            f"SafetyScorer '{scorer_name}' is not registered. Available: {list(SafetyScorerRegistry._scorers.keys())}"
+        )
+    scorer = scorer_class(batch_size=batch_size)
     # If input_path and output_path are files, then we use them directly
     # Otherwise, we assume they are directories and process each file in them
     if os.path.isfile(input_path) and os.path.isfile(output_path):
