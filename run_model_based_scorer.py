@@ -55,6 +55,7 @@ def run_model_based_scorer(
             process_file_in_parallel(
                 input_path,
                 output_dir,
+                text_field,
                 num_processes,
                 num_gpus_per_process,
                 gpu_start_id,
@@ -164,7 +165,7 @@ def run_model_based_scorer(
 
 
 def process_func(
-    files,
+    files: list[str],
     text_field,
     gpu_ids_to_use: list[int],
     scorer_model: str,
@@ -215,7 +216,7 @@ def process_func(
 
 
 def compute_parallel(
-    filelist,
+    filelist: list[str],
     text_field,
     num_processes,
     num_gpus_per_process,
@@ -226,7 +227,10 @@ def compute_parallel(
     file_name_suffix: str = "_rewards",
     score_field_name: str = "reward_score",
 ):
-    files_to_process = np.array_split(filelist, num_processes)
+    # Ensure type checkers see lists of strings per process
+    files_to_process = [
+        list(chunk) for chunk in np.array_split(filelist, num_processes)
+    ]
     device_to_use = get_device_to_use(num_gpus_per_process, num_processes)
 
     if debug_mode:

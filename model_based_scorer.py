@@ -3,6 +3,7 @@ import logging
 import os
 from abc import abstractmethod
 from collections import OrderedDict
+from typing import Callable, TypeVar, cast
 
 import llm_blender
 import torch
@@ -23,7 +24,14 @@ REMOVE_TOKENS = ["&quot;", "&quot", "\n\n.\n\n"]
 
 
 class ModelBasedScorerBase:
-    def __init__(self, text_field: str, file_name_suffix: str, score_field_name: str):
+    def __init__(
+        self,
+        text_field: str,
+        file_name_suffix: str,
+        score_field_name: str,
+        device: str | None = None,
+        gpu_ids: list[int] | None = None,
+    ):
         self.text_field = text_field
         self.file_name_suffix = file_name_suffix
         self.score_field_name = score_field_name
@@ -127,20 +135,30 @@ class ModelBasedScorerBase:
         return data
 
 
+T_ModelScorer = TypeVar("T_ModelScorer", bound="ModelBasedScorerBase")
+
+
 class ModelBasedScorerRegistry:
     _scorers: dict[str, type[ModelBasedScorerBase]] = {}
 
     @classmethod
-    def register(cls, name):
-        def decorator(scorer_class):
+    def register(
+        cls, name: str
+    ) -> Callable[[type[T_ModelScorer]], type[T_ModelScorer]]:
+        def decorator(scorer_class: type[T_ModelScorer]) -> type[T_ModelScorer]:
             cls._scorers[name] = scorer_class
             return scorer_class
 
         return decorator
 
     @classmethod
-    def get(cls, name):
-        return cls._scorers.get(name)
+    def get(cls, name: str) -> type[ModelBasedScorerBase]:
+        scorer_class = cls._scorers.get(name)
+        if scorer_class is None:
+            raise KeyError(
+                f"ModelBasedScorer '{name}' is not registered. Available: {list(cls._scorers.keys())}"
+            )
+        return scorer_class
 
 
 @ModelBasedScorerRegistry.register("llm-blender/PairRM")
@@ -167,7 +185,10 @@ class BlenderRewardScorer(ModelBasedScorerBase):
     def get_score(self, prompt: str, texts: list[str]) -> list[float]:
         # This is list of lists, because blender did not work with plain strings
         # or list of strings of size 1.
-        return self.blender.rank([prompt], [texts], return_scores=True)[0]
+        scores_2d = cast(
+            list[list[float]], self.blender.rank([prompt], [texts], return_scores=True)
+        )
+        return scores_2d[0]
 
 
 @ModelBasedScorerRegistry.register("RLHFlow/ArmoRM-Llama3-8B-v0.1")
