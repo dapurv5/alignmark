@@ -25,7 +25,7 @@ python utils/download_model.py $REWARD_MODEL
 
 OUTPUT_DIR=$EXP_DIR_PREFIX/"${EXP_NAME}_rewards_${REWARD_MODEL_SHORTFORM}"
 
-python run_reward_scorer.py \
+python run_model_based_scorer.py \
     --input_path $EXP_DIR_PREFIX/$EXP_NAME \
     --output_path $OUTPUT_DIR \
     --reward_model $REWARD_MODEL \

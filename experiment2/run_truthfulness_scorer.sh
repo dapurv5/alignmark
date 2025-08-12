@@ -6,8 +6,8 @@ set -o errexit -o xtrace -o nounset
 # Values to be set by user
 ###################
 CLUSTER="LOCAL"  # "AWS" or "WULVER"
-EXP_NAME=${1:-"exp_002_truthfulqa_beam"}
-TGT_DIR_NAME=${2:-"exp_002_truthfulqa_beam_truthfulness"}
+EXP_NAME=${1:-"exp_002_truthfulqa_beam_rewards_armo"}
+TGT_DIR_NAME=${2:-"exp_002_truthfulqa_beam_rewards_armo_truthfulness"}
 ###################
 
 if [ "$CLUSTER" = "WULVER" ]; then

@@ -14,7 +14,7 @@ set -o errexit -o xtrace -o nounset
 # "Qwen/Qwen2.5-14B-Instruct" )
 
 list_of_models=("Qwen/Qwen2.5-14B-Instruct" \
-	"google/gemma-2-27b" \
+	"google/gemma-2-27b-it" \
 	"mistralai/Mistral-Small-3.1-24B-Instruct-2503" )
 
 for model in "${list_of_models[@]}"; do

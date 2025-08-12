@@ -11,10 +11,11 @@ set -o errexit -o xtrace -o nounset
 # "meta-llama/Llama-3.2-1B-Instruct" \
 # "meta-llama/Llama-3.2-3B-Instruct" \
 # "Qwen/Qwen2.5-0.5B-Instruct" \
-# "Qwen/Qwen2.5-14B-Instruct" )
+# "Qwen/Qwen2.5-14B-Instruct" \
+# "mistralai/Mistral-Small-3.1-24B-Instruct-2503" )
 
 list_of_models=("Qwen/Qwen2.5-14B-Instruct" \
-	"google/gemma-2-27b" \
+	"google/gemma-2-27b-it" \
 	"mistralai/Mistral-Small-3.1-24B-Instruct-2503" )
 
 

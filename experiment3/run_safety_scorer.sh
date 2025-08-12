@@ -6,16 +6,16 @@ set -o errexit -o xtrace -o nounset
 # Values to be set by user
 ###################
 CLUSTER="LOCAL"  # "AWS" or "WULVER"
-EXP_NAME=${1:-"exp_003_safety_beam_rewards_armo_subset"}
-TGT_DIR_NAME=${2:-"exp_003_safety_beam_rewards_armo_subset_safety"}
+EXP_NAME=${1:-"exp_003_safety_beam_rewards_armo"}
+TGT_DIR_NAME=${2:-"exp_003_safety_beam_rewards_armo_safety"}
 ###################
 
 if [ "$CLUSTER" = "WULVER" ]; then
-    EXP_DIR_PREFIX="/project/phan/av787/projs/watermarking-v1/outputs"
+    EXP_DIR_PREFIX="/project/phan/av787/projs/outputs/watermarking-v2"
 elif [ "$CLUSTER" = "AWS" ]; then
-    EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1"
+    EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v2"
 else
-    EXP_DIR_PREFIX="$HOME/MyCode/_MyResearchProjects/wm-output40GB/outputs/watermarking-v1"
+    EXP_DIR_PREFIX="$HOME/mint/wm-output40GB/outputs/watermarking-v2"
 fi
 
 python run_safety_scorer.py \

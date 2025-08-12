@@ -42,7 +42,7 @@ python $VLLM_WATERMARK_DIR/scripts/generate_wm_and_unwm.py \
   --model_name $MODEL_NAME \
   --seed $SEED \
   --ngram 4 \
-  --detection_threshold 0.05 \
+  --detection_threshold 0.10 \
   --temperature 1.0 \
   --max_tokens 200 \
   --top_p 0.95 \

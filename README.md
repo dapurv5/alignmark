@@ -71,7 +71,7 @@ bash experiment3/construct_plots.sh
 
 ### EXPERIMENT 4 (Over-refusal)
 ```
-bash experiment4/run.sh
+bash experiment4/run_all_models.sh
 bash experiment4/run_reward_scorer.sh
 bash experiment4/run_refusal_scorer.sh
 bash experiment4/gen_simplex_data.sh

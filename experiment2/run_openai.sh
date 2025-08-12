@@ -9,8 +9,9 @@ MODEL_NAME=${1:-"meta-llama/Llama-3.2-1B-Instruct"}
 EXP_NAME=${2:-"exp_002_truthfulqa_beam"}
 SEED=42
 CLEAN_MODEL_AFTER_RUN=${CLEAN_MODEL_AFTER_RUN:-"false"}
+###################
 
-python utils/download_model.py $MODEL_NAME
+# python utils/download_model.py $MODEL_NAME
 
 if [ "$CLUSTER" == "WULVER" ]; then
     EXP_DIR_PREFIX="/project/phan/av787/projs/outputs/watermarking-v2"
@@ -33,7 +34,7 @@ python $VLLM_WATERMARK_DIR/scripts/generate_wm_and_unwm.py \
   --model_name $MODEL_NAME \
   --seed $SEED \
   --ngram 4 \
-  --detection_threshold 0.05 \
+  --detection_threshold 0.10 \
   --temperature 1.0 \
   --max_tokens 128 \
   --top_p 0.95 \

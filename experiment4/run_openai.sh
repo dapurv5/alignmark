@@ -14,101 +14,41 @@ set -o errexit -o xtrace -o nounset
 CLUSTER="AWS"  # "AWS" or "WULVER"
 MODEL_NAME=${1:-"meta-llama/Llama-3.1-8B-Instruct"}
 EXP_NAME=${2:-"exp_004_overrefusal_beam"}
-# Choose number of GPUs to be exactly divisible by DATASET_SIZE
-NUM_GPUS_AVAILABLE=8
-DATASET_SIZE=680  # The actual dataset size is 680
-BATCH_SIZE=8  # Use batch size 8 for 40GB GPU and also for 80GB GPU to keep it full utilized
 SEED=42
 CLEAN_MODEL_AFTER_RUN=${CLEAN_MODEL_AFTER_RUN:-"false"}
-DATASET_PATH="$HOME/SageMaker/refusal-data.jsonl"
-# Choose these values based on the GPU memory available
-# --num_wm_generations_per_prompt 4 \  # 4 for 40GB, 8 for 80GB
-# --num_unwm_generations_per_prompt 2 \  # 2 for 40GB, 4 for 80GB
-# --beam_size 4 \  # 4 for 40GB, 8 for 80GB
-
 ###################
-# Before running the script give a prompt to the user to enter y for the question
-# "Are the model already downloaded and cached and symlinks created?"
-# read -p "Are the model already downloaded and cached and symlinks created? (y/n): " answer
-# if [ "$answer" != "y" ]; then
-#     echo "Please download the model and create symlinks before running this script."
-#     exit 1
-# fi
 
-# read -p "Is the refusal-data.jsonl file in the home directory? (y/n): " answer
-# if [ "$answer" != "y" ]; then
-#     echo "Please download the refusal-data.jsonl file and place it in home"
-#     exit 1
-# fi
-
-python utils/download_model.py $MODEL_NAME
-
+# python utils/download_model.py $MODEL_NAME
 
 if [ "$CLUSTER" == "WULVER" ]; then
-    EXP_DIR_PREFIX="/project/phan/av787/projs/watermarking-v1/outputs"
+    EXP_DIR_PREFIX="/project/phan/av787/projs/outputs/watermarking-v2"
     DATASET_PATH="$HOME/refusal-data.jsonl"
+    VLLM_WATERMARK_DIR="$HOME/vLLM-Watermark"
 else
-    EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1"
+    EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v2"
     DATASET_PATH="$HOME/SageMaker/refusal-data.jsonl"
+    VLLM_WATERMARK_DIR="/home/ec2-user/SageMaker/vLLM-Watermark"
 fi
 
+SIMPLE_MODEL_NAME="${MODEL_NAME##*/}"  # meta-llama/Llama-3.1-8B-Instruct -> Llama-3.1-8B-Instruct
+OUTPUT_FILENAME="out_refusal_${SIMPLE_MODEL_NAME}_openai_${SEED}_temperature_1.0_ngram_4.jsonl"
 
-sleep 2
-
-# Calculate rows per GPU
-ROWS_PER_GPU=$((DATASET_SIZE / NUM_GPUS_AVAILABLE))
-
-for gpu in $(seq 0 $((NUM_GPUS_AVAILABLE - 1))); do
-    # Calculate start and end rows for this GPU
-    START_ROW=$((gpu * ROWS_PER_GPU))
-    END_ROW=$(((gpu + 1) * ROWS_PER_GPU - 1))
-
-    # For the last GPU, make sure we process any remaining rows
-    if [ $gpu -eq $((NUM_GPUS_AVAILABLE - 1)) ]; then
-        END_ROW=$((DATASET_SIZE - 1))
-    fi
-
-    # Calculate number of rows for this GPU and fix batch size if necessary
-    NUM_ROWS_FOR_GPU=$((END_ROW - START_ROW + 1))
-    # Batch size is minimum of 32 and number of rows per GPU
-    BATCH_SIZE=$((NUM_ROWS_FOR_GPU < BATCH_SIZE ? NUM_ROWS_FOR_GPU : BATCH_SIZE))
-
-    # Launch process for each GPU in background
-    (
-        CUDA_VISIBLE_DEVICES=$gpu python run_generate.py \
-            --exp_dir "$EXP_DIR_PREFIX/$EXP_NAME/parts" \
-            --model_name $MODEL_NAME \
-            --dataset_path $DATASET_PATH \
-            --text_field "prompt" \
-            --format_prompt_as_instructions \
-            --watermark_name "openai" \
-            --ngram 4 \
-            --threshold 0.1 \
-            --seed $SEED \
-            --temperature 1.0 \
-            --max_gen_len 200 \
-            --top_p 0.95 \
-            --batch_size $BATCH_SIZE \
-            --dataset_start_row $START_ROW \
-            --dataset_end_row $END_ROW \
-            --num_wm_generations_per_prompt 4 \
-            --num_unwm_generations_per_prompt 2 \
-            --beam_size 4 \
-            #--select_random_subset_from_dataset  # (keep this off otherwise the dataset will change)
-    ) &
-    sleep 10
-done
-# Wait for all background processes to complete before moving to next temperature
-wait
-
-# Now merge the part files into a single file from the experiment directory
-python merge_parts.py \
-    --exp_dir "$EXP_DIR_PREFIX/$EXP_NAME/parts" \
-    --output_dir "$EXP_DIR_PREFIX/$EXP_NAME" \
-    --dataset_size $DATASET_SIZE
-
-# Delete the parts directory
-rm -rf "$EXP_DIR_PREFIX/$EXP_NAME/parts"
+python $VLLM_WATERMARK_DIR/scripts/generate_wm_and_unwm.py \
+  --input_path "$DATASET_PATH" \
+  --input_key "prompt" \
+  --output_path "$EXP_DIR_PREFIX/$EXP_NAME/$OUTPUT_FILENAME" \
+  --watermarking_algorithm "OPENAI_DR" \
+  --model_name $MODEL_NAME \
+  --seed $SEED \
+  --ngram 4 \
+  --detection_threshold 0.10 \
+  --temperature 1.0 \
+  --max_tokens 200 \
+  --top_p 0.95 \
+  --num_wm_generations_per_prompt 4 \
+  --num_unwm_generations_per_prompt 2 \
+  --dataset_start_row 0 \
+  --dataset_end_row 680
 
 if [ "$CLEAN_MODEL_AFTER_RUN" == "true" ]; then
     python utils/clean_model.py $MODEL_NAME
