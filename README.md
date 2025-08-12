@@ -63,7 +63,7 @@ bash experiment2/construct_plots.sh
 
 ### EXPERIMENT 3 (Safety)
 ```
-bash experiment3/run.sh
+bash experiment3/run_all_models.sh
 bash experiment3/run_reward_scorer.sh
 bash experiment3/run_safety_scorer.sh
 bash experiment3/construct_plots.sh
