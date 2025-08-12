@@ -49,7 +49,7 @@ python $VLLM_WATERMARK_DIR/scripts/generate_wm_and_unwm.py \
   --num_wm_generations_per_prompt 4 \
   --num_unwm_generations_per_prompt 2 \
   --dataset_start_row 0 \
-  --dataset_end_row 800
+  --dataset_end_row 3800
 
 if [ "$CLEAN_MODEL_AFTER_RUN" == "true" ]; then
     python utils/clean_model.py $MODEL_NAME
