@@ -6,16 +6,16 @@ set -o errexit -o xtrace -o nounset
 # Values to be set by user
 ###################
 CLUSTER="LOCAL"  # "AWS" or "WULVER"
-EXP_NAME=${1:-"exp_002_sweep_temp_truthfulqa_beam"}
-TGT_DIR_NAME=${2:-"exp_002_sweep_temp_truthfulqa_beam_truthfulness"}
+EXP_NAME=${1:-"exp_002_truthfulqa_beam"}
+TGT_DIR_NAME=${2:-"exp_002_truthfulqa_beam_truthfulness"}
 ###################
 
 if [ "$CLUSTER" = "WULVER" ]; then
-    EXP_DIR_PREFIX="/project/phan/av787/projs/watermarking-v1/outputs"
+    EXP_DIR_PREFIX="/project/phan/av787/projs/outputs/watermarking-v2"
 elif [ "$CLUSTER" = "AWS" ]; then
-    EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1"
+    EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v2"
 else
-    EXP_DIR_PREFIX="/Users/verapurv/mint/wm-output40GB/outputs/watermarking-v1"
+    EXP_DIR_PREFIX="$HOME/mint/wm-output40GB/outputs/watermarking-v2"
 fi
 
 python run_truthfulness_scorer.py \

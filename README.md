@@ -25,9 +25,10 @@ pip install git+https://github.com/lucadiliello/bleurt-pytorch.git
 
 
 ### Commands
-```
+
 ### EXPERIMENT 1 (Reward Scores Gap)
 
+```
 bash experiment1/sweep_maryland.sh
 bash experiment1/sweep_openai.sh
 bash experiment1/sweep_maryland_beam.sh
@@ -50,30 +51,26 @@ bash experiment1/gen_best_of_n_ppl.sh 4
 bash experiment1/construct_plots.sh
 
 bash experiment1/plot_best_of_n_asym.sh exp_001_sweep_temp_hhrlhf_beam_rewards_armo_ppl_BoN  # change legend to include Perplexity manually
+```
 
 ### EXPERIMENT 2 (Truthfulness)
-
-bash experiment2/sweep.sh
+```
+bash experiment2/run_all_models.sh
 bash experiment2/run_reward_scorer.sh
-
-# Run truthfulness scorer
 bash experiment2/run_truthfulness_scorer.sh
-
-# Plotting
 bash experiment2/construct_plots.sh
-
+```
 
 ### EXPERIMENT 3 (Safety)
-
+```
 bash experiment3/run.sh
 bash experiment3/run_reward_scorer.sh
 bash experiment3/run_safety_scorer.sh
-
 bash experiment3/construct_plots.sh
-
+```
 
 ### EXPERIMENT 4 (Over-refusal)
-
+```
 bash experiment4/run.sh
 bash experiment4/run_reward_scorer.sh
 bash experiment4/run_refusal_scorer.sh
@@ -83,9 +80,10 @@ bash experiment4/construct_plots.sh
 python plots/plot_simplex.py --input_path $HOME/mint/watermarking-analysis/SimplexData_v1.tsv  --model_name "Meta-Llama-3.1-8B-Instruct"
 
 python plots/plot_stacked_bar_chart.py --input_path $HOME/mint/watermarking-analysis/SimplexData_v3.tsv --output_path $HOME/mint/watermarking-analysis/simplexdata_v3_stackedbar.pdf
+```
 
 ### EXPERIMENT 5 (Feasability)
-
+```
 bash experiment1/sweep_maryland.sh
 bash experiment1/sweep_openai.sh
 

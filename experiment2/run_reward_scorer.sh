@@ -5,7 +5,7 @@ set -o errexit -o xtrace -o nounset
 # Values to be set by user
 ###################
 CLUSTER="AWS"  # "AWS" or "WULVER"
-EXP_NAME=${1:-"exp_002_sweep_temp_truthfulqa_beam"}
+EXP_NAME=${1:-"exp_002_truthfulqa_beam"}
 NUM_GPUS_PER_PROCESS=1
 NUM_PROCESSES=8
 REWARD_MODEL="RLHFlow/ArmoRM-Llama3-8B-v0.1"  # llm-blender/PairRM | RLHFlow/ArmoRM-Llama3-8B-v0.1
@@ -14,10 +14,10 @@ TEXT_FIELD="question"
 ###################
 
 if [ "$CLUSTER" == "WULVER" ]; then
-    EXP_DIR_PREFIX="/project/phan/av787/projs/watermarking-v1/outputs"
+    EXP_DIR_PREFIX="/project/phan/av787/projs/outputs/watermarking-v2"
     GPU_START_ID=0
 else
-    EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1"
+    EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v2"
     GPU_START_ID=0
 fi
 python utils/download_model.py $REWARD_MODEL
