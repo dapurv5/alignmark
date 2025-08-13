@@ -11,98 +11,52 @@ set -o errexit -o xtrace -o nounset
 # Values to be set by user
 ###################
 CLUSTER="AWS"  # "AWS" or "WULVER"
-MODEL_NAME=${1:-"meta-llama/Llama-3.1-8B-Instruct"}
+MODEL_NAME=${1:-"meta-llama/Llama-3.2-1B-Instruct"}
 EXP_NAME=${2:-"exp_005_hhrlhf_beam"}
-# Choose number of GPUs to be exactly divisible by DATASET_SIZE
-NUM_GPUS_AVAILABLE=4  # Don't set > 4 for now, because it hangs after a while for unknown reasons
 DATASET_SIZE=1024
-BATCH_SIZE=8  # Use batch size 8 for 40GB GPU and also for 80GB GPU to keep it full utilized
 SEED=42
 CLEAN_MODEL_AFTER_RUN=${CLEAN_MODEL_AFTER_RUN:-"false"}
 
-# Choose these values based on the GPU memory available
-# --num_wm_generations_per_prompt 4 \  # 4 for 40GB, 8 for 80GB
-# --num_unwm_generations_per_prompt 2 \  # 2 for 40GB, 4 for 80GB
-# --beam_size 4 \  # 4 for 40GB, 8 for 80GB
 ###################
-# Before running the script give a prompt to the user to enter y for the question
-# "Are the model already downloaded and cached and symlinks created?"
-# read -p "Are the model already downloaded and cached and symlinks created? (y/n): " answer
-# if [ "$answer" != "y" ]; then
-#     echo "Please download the model and create symlinks before running this script."
-#     exit 1
-# fi
-python utils/download_model.py $MODEL_NAME
+## python utils/download_model.py $MODEL_NAME
 
 
 if [ "$CLUSTER" == "WULVER" ]; then
-    EXP_DIR_PREFIX="/project/phan/av787/projs/watermarking-v1/outputs"
+	EXP_DIR_PREFIX="/project/phan/av787/projs/outputs/watermarking-v2"
+	VLLM_WATERMARK_DIR="$HOME/vLLM-Watermark"
 else
-    EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1"
+	EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v2"
+	VLLM_WATERMARK_DIR="/home/ec2-user/SageMaker/vLLM-Watermark"
 fi
 
-# Generally higher temperatures because outputs are diverse
+SIMPLE_MODEL_NAME="${MODEL_NAME##*/}"  # meta-llama/Llama-3.1-8B-Instruct -> Llama-3.1-8B-Instruct
+
+# Sweep temperatures and generate with vLLM-Watermark
 for temperature in $(seq 0.2 0.2 1.0); do
-    echo "Running temperature = $temperature ..."
-    sleep 2
+	echo "Running temperature = $temperature ..."
+	sleep 2
 
-    # Calculate rows per GPU
-    ROWS_PER_GPU=$((DATASET_SIZE / NUM_GPUS_AVAILABLE))
+	OUTPUT_FILENAME="out_hhrlhf_${SIMPLE_MODEL_NAME}_maryland_${SEED}_temperature_${temperature}_delta_2.0_gamma_0.25_ngram_4.jsonl"
 
-    for gpu in $(seq 0 $((NUM_GPUS_AVAILABLE - 1))); do
-        # Calculate start and end rows for this GPU
-        START_ROW=$((gpu * ROWS_PER_GPU))
-        END_ROW=$(((gpu + 1) * ROWS_PER_GPU - 1))
-
-        # For the last GPU, make sure we process any remaining rows
-        if [ $gpu -eq $((NUM_GPUS_AVAILABLE - 1)) ]; then
-            END_ROW=$((DATASET_SIZE - 1))
-        fi
-
-        # Calculate number of rows for this GPU and fix batch size if necessary
-        NUM_ROWS_FOR_GPU=$((END_ROW - START_ROW + 1))
-        # Batch size is minimum of 32 and number of rows per GPU
-        BATCH_SIZE=$((NUM_ROWS_FOR_GPU < BATCH_SIZE ? NUM_ROWS_FOR_GPU : BATCH_SIZE))
-
-        # Launch process for each GPU in background
-        (
-            CUDA_VISIBLE_DEVICES=$gpu python run_generate.py \
-                --exp_dir "$EXP_DIR_PREFIX/$EXP_NAME/parts" \
-                --model_name $MODEL_NAME \
-                --dataset_name "Dahoas/full-hh-rlhf" \
-                --dataset_split "test" \
-                --text_field "prompt" \
-                --watermark_name "maryland" \
-                --delta 2.0 \
-                --gamma 0.25 \
-                --ngram 4 \
-                --threshold 0.05 \
-                --seed $SEED \
-                --temperature $temperature \
-                --max_gen_len 250 \
-                --top_p 0.95 \
-                --batch_size $BATCH_SIZE \
-                --limit_dataset_size $DATASET_SIZE \
-                --dataset_start_row $START_ROW \
-                --dataset_end_row $END_ROW \
-                --num_wm_generations_per_prompt 4 \
-                --num_unwm_generations_per_prompt 2 \
-                --beam_size 4
-                #--select_random_subset_from_dataset  # (keep this off otherwise the dataset will change)
-        ) &
-        sleep 10
-    done
-    # Wait for all background processes to complete before moving to next temperature
-    wait
-
-    # Now merge the part files into a single file from the experiment directory
-    python merge_parts.py \
-        --exp_dir "$EXP_DIR_PREFIX/$EXP_NAME/parts" \
-        --output_dir "$EXP_DIR_PREFIX/$EXP_NAME" \
-        --dataset_size $DATASET_SIZE
-
-    # Delete the parts directory
-    rm -rf "$EXP_DIR_PREFIX/$EXP_NAME/parts"
+	CUDA_VISIBLE_DEVICES=3 python $VLLM_WATERMARK_DIR/scripts/generate_wm_and_unwm.py \
+	  --input_path "Dahoas/full-hh-rlhf" \
+	  --hf_split "test" \
+	  --input_key "prompt" \
+	  --output_path "$EXP_DIR_PREFIX/$EXP_NAME/$OUTPUT_FILENAME" \
+	  --watermarking_algorithm "MARYLAND" \
+	  --model_name $MODEL_NAME \
+	  --seed $SEED \
+	  --ngram 4 \
+	  --delta 2.0 \
+	  --gamma 0.25 \
+	  --detection_threshold 0.05 \
+	  --temperature $temperature \
+	  --max_tokens 250 \
+	  --top_p 0.95 \
+	  --num_wm_generations_per_prompt 4 \
+	  --num_unwm_generations_per_prompt 2 \
+	  --dataset_start_row 0 \
+	  --dataset_end_row $DATASET_SIZE
 done
 
 if [ "$CLEAN_MODEL_AFTER_RUN" == "true" ]; then

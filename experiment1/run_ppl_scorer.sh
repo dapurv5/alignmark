@@ -16,11 +16,11 @@ SCORE_FIELD_NAME="ppl_score"
 ###################
 
 if [ "$CLUSTER" == "WULVER" ]; then
-    EXP_DIR_PREFIX="/project/phan/av787/projs/watermarking-v1/outputs"
+    EXP_DIR_PREFIX="/project/phan/av787/projs/outputs/watermarking-v2"
     GPU_START_ID=0
     NUM_PROCESSES=1
 else
-    EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1"
+    EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v2"
     GPU_START_ID=0
 fi
 python utils/download_model.py $SCORER_MODEL
