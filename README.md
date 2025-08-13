@@ -29,28 +29,20 @@ pip install git+https://github.com/lucadiliello/bleurt-pytorch.git
 ### EXPERIMENT 1 (Reward Scores Gap)
 
 ```
-bash experiment1/sweep_maryland.sh
-bash experiment1/sweep_openai.sh
 bash experiment1/sweep_maryland_beam.sh
 bash experiment1/sweep_openai_beam.sh
-
-# Run reward scorer
 bash experiment1/run_reward_scorer.sh
 bash experiment1/run_ppl_scorer.sh
-
-# Run BoN
 bash experiment1/gen_best_of_n.sh 2
 bash experiment1/gen_best_of_n.sh 3
 bash experiment1/gen_best_of_n.sh 4
-
 bash experiment1/gen_best_of_n_ppl.sh 2
 bash experiment1/gen_best_of_n_ppl.sh 3
 bash experiment1/gen_best_of_n_ppl.sh 4
 
-# Plotting
 bash experiment1/construct_plots.sh
-
-bash experiment1/plot_best_of_n_asym.sh exp_001_sweep_temp_hhrlhf_beam_rewards_armo_ppl_BoN  # change legend to include Perplexity manually
+# Change legend to include perplexity manually
+bash experiment1/plot_best_of_n_asym.sh exp_001_sweep_temp_hhrlhf_beam_rewards_armo_ppl_BoN
 ```
 
 ### EXPERIMENT 2 (Truthfulness)
