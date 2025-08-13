@@ -34,7 +34,7 @@ fi
 SIMPLE_MODEL_NAME="${MODEL_NAME##*/}"  # meta-llama/Llama-3.2-1B-Instruct -> Llama-3.2-1B-Instruct
 OUTPUT_FILENAME="out_safety_${SIMPLE_MODEL_NAME}_openai_${SEED}_temperature_1.0_ngram_4.jsonl"
 
-python $VLLM_WATERMARK_DIR/scripts/generate_wm_and_unwm.py \
+CUDA_VISIBLE_DEVICES=1 python $VLLM_WATERMARK_DIR/scripts/generate_wm_and_unwm.py \
   --input_path "$DATASET_PATH" \
   --input_key "prompt" \
   --output_path "$EXP_DIR_PREFIX/$EXP_NAME/$OUTPUT_FILENAME" \

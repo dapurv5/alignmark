@@ -28,7 +28,7 @@ OUTPUT_DIR=$EXP_DIR_PREFIX/"${EXP_NAME}_rewards_${REWARD_MODEL_SHORTFORM}"
 python run_model_based_scorer.py \
     --input_path $EXP_DIR_PREFIX/$EXP_NAME \
     --output_path $OUTPUT_DIR \
-    --reward_model $REWARD_MODEL \
+    --scorer_model $REWARD_MODEL \
     --num_processes $NUM_PROCESSES \
     --num_gpus_per_process $NUM_GPUS_PER_PROCESS \
     --gpu_start_id $GPU_START_ID \
