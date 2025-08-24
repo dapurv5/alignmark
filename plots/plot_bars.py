@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import fire
@@ -83,6 +84,7 @@ def plot_safety_comparison(all_models_data, output_path):
         )
 
         bar_width = 0.25  # 0.35
+
         # # Sort all_models_data by model size obtained by parsing the model name e.g. Qwen2.5-72B-Instruct -> 72B, Qwen2.5-14B -> 14B
         # all_models_data = dict(
         #     sorted(
@@ -96,18 +98,19 @@ def plot_safety_comparison(all_models_data, output_path):
         #         ),
         #     )
         # )
-        # Sort all_models_data by model size obtained by parsing the model name e.g. Qwen2.5-72B-Instruct -> 72B, Qwen2.5-14B -> 14B
+        # Sort all_models_data by model size (in billions) parsed from model name.
+        # Handles tokens like '72B', '1.5B', '27b'. Models without a size suffix go last.
+        def _extract_model_size(model_name: str) -> float:
+            match = re.search(r"(\d+(?:\.\d+)?)\s*[bB]\b", model_name)
+            if match:
+                try:
+                    return float(match.group(1))
+                except ValueError:
+                    return float("inf")
+            return float("inf")
+
         all_models_data = dict(
-            sorted(
-                all_models_data.items(),
-                key=lambda x: float(
-                    "".join(
-                        c
-                        for c in next(p for p in x[0].split("-") if "B" in p)
-                        if c.isdigit() or c == "."
-                    )
-                ),
-            )
+            sorted(all_models_data.items(), key=lambda x: _extract_model_size(x[0]))
         )
         for idx, (model_name, model_data) in enumerate(all_models_data.items()):
             ax = axes[idx]
@@ -161,7 +164,7 @@ def plot_safety_comparison(all_models_data, output_path):
         plt.close()
 
 
-def main(input_dir: str, output_dir: str = None):
+def main(input_dir: str, output_dir: str | None = None):
     """
     Generate safety comparison plots for model outputs with different watermarking methods.
 
