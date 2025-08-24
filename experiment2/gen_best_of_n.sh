@@ -4,14 +4,14 @@ set -o errexit -o xtrace -o nounset
 
 CLUSTER="LOCAL"  # "AWS" or "WULVER"
 N=${1:-2}
-EXP_NAME=${2:-"exp_002_sweep_temp_truthfulqa_beam_rewards_armo_subset_truthfulness"}
-TGT_DIR_NAME=${3:-"exp_002_sweep_temp_truthfulqa_beam_rewards_armo_subset_truthfulness_BoN"}
+EXP_NAME=${2:-"exp_002_truthfulqa_beam_rewards_armo_truthfulness"}
+TGT_DIR_NAME=${3:-"exp_002_truthfulqa_beam_rewards_armo_truthfulness_BoN"}
 if [ "$CLUSTER" = "WULVER" ]; then
-    EXP_DIR_PREFIX="/project/phan/av787/projs/watermarking-v1/outputs"
+    EXP_DIR_PREFIX="/project/phan/av787/projs/outputs/watermarking-v2"
 elif [ "$CLUSTER" = "AWS" ]; then
-    EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1"
+    EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v2"
 else
-    EXP_DIR_PREFIX="/Users/verapurv/mint/wm-output40GB/outputs/watermarking-v1"
+    EXP_DIR_PREFIX="/Users/verapurv/mint/wm-output40GB/outputs/watermarking-v2"
 fi
 
 # In words, this is saying find the index of the top score in idx = watermarked_texts_reward_score[:n]

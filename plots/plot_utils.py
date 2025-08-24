@@ -167,6 +167,9 @@ def get_short_model_name(model_name: str) -> str:
         "Qwen2-3B-Instruct": "Qwen2-3B-Inst",
         "Qwen2.5-1.5B-Instruct": "Qwen2.5-1.5B-Inst",
         "Qwen2.5-0.5B-Instruct": "Qwen2.5-0.5B-Inst",
+        "Qwen2.5-14B-Instruct": "Qwen2.5-14B-Inst",
+        "gemma-2-27b-it": "Gemma-27B-Inst",
+        "Mistral-Small-3.1-24B-Instruct-2503": "Mistral-Small-24B-Inst",
     }.get(model_name, model_name)
 
 
