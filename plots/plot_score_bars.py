@@ -16,8 +16,13 @@ from plot_utils import (
 def plot_score_comparison(
     all_models_data: dict[str, dict[str, float]], output_file: Path, score_name: str
 ) -> None:
-    models: list[str] = list(all_models_data.keys())
+    models: list[str] = sorted(
+        list(all_models_data.keys()), key=lambda m: get_short_model_name(m).lower()
+    )
     watermark_types = list(all_models_data.values())[0].keys()
+    watermark_types_sorted = sorted(
+        list(watermark_types), key=lambda wm: get_short_watermark_name(wm).lower()
+    )
 
     import numpy as np
     import pub_ready_plots as prp
@@ -35,7 +40,7 @@ def plot_score_comparison(
         ax: Axes = cast(Axes, ax_obj)
         # Calculate positions
         n_groups = len(models)
-        n_bars = len(watermark_types)
+        n_bars = len(watermark_types_sorted)
         bar_width = 0.10
         group_width = bar_width * n_bars
         group_positions = np.arange(n_groups) * (
@@ -48,7 +53,7 @@ def plot_score_comparison(
 
         # Plot bars for each model
         for model_idx, model in enumerate(models):
-            for wm_idx, wm_type in enumerate(watermark_types):
+            for wm_idx, wm_type in enumerate(watermark_types_sorted):
                 x_pos = group_positions[model_idx] + wm_idx * bar_width
                 height = all_models_data[model][wm_type]
                 ax.bar(
@@ -123,6 +128,38 @@ def plot_score_comparison(
         # Save the plot with increased top margin to accommodate legend
         fig.savefig(output_file, bbox_inches="tight", dpi=300, pad_inches=0.3)
 
+        # Print table of values to terminal
+        from math import isnan
+
+        header = ["Model"] + [
+            get_short_watermark_name(wm_type) for wm_type in watermark_types_sorted
+        ]
+        rows: list[list[str]] = []
+        for model in models:
+            row: list[str] = [get_short_model_name(model)]
+            for wm_type in watermark_types_sorted:
+                value = all_models_data[model][wm_type]
+                cell = "-" if isnan(value) else f"{value:.3f}"
+                row.append(cell)
+            rows.append(row)
+
+        # Compute column widths
+        col_widths = [len(col) for col in header]
+        for row in rows:
+            for idx, cell in enumerate(row):
+                if len(cell) > col_widths[idx]:
+                    col_widths[idx] = len(cell)
+
+        def format_row(cells: list[str]) -> str:
+            return "  ".join(
+                cell.ljust(col_widths[idx]) for idx, cell in enumerate(cells)
+            )
+
+        print("\n" + format_row(header))
+        print(format_row(["-" * w for w in col_widths]))
+        for row in rows:
+            print(format_row(row))
+
 
 def get_scores(
     data: list[dict[str, Any]], score_name: str, prefix: str = "watermarked"
@@ -156,6 +193,8 @@ def main(
         files = list(input_path.glob(f"*{score_name}s.jsonl"))
     else:
         files = list(input_path.glob(f"*{score_name}.jsonl"))
+    # Sort files so files are sorted by watermark type.
+    files = sorted(files, key=lambda f: parse_filename(f.name)["watermark_type"])
 
     # Create a dictionary to store data for all models
     # Collect raw scores for each model and watermark type
