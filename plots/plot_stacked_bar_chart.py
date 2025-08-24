@@ -49,8 +49,8 @@ def plot(df: pd.DataFrame, output_path: str):
     watermark_types = list(set(df["Setting"].unique()) - {"Unwatermarked"})
 
     with prp.get_context(layout=prp.Layout.ICML, single_col=True) as (fig, ax):
-        # Clear the main axis as we'll create our own subplots
-        ax.remove()
+        # Clear the figure to create our own subplots
+        fig.clear()
 
         # Increase figure size
         fig.set_size_inches(20, 6)
@@ -77,7 +77,10 @@ def plot(df: pd.DataFrame, output_path: str):
 
         # Plot Unsafe changes
         x = np.arange(len(model_order))
-        width = 0.25  # IMPORTANT: 0.35 is the default, use 0.20 for BoN plots
+        # Make bar layout generic to any number of watermark types
+        num_wm_types = len(watermark_types)
+        group_width = 0.8  # Leave some spacing between model groups
+        width = group_width / max(num_wm_types, 1)
 
         for i, watermark_type in enumerate(watermark_types):
             mask = delta_df["Setting"] == watermark_type
@@ -89,7 +92,7 @@ def plot(df: pd.DataFrame, output_path: str):
             ]
 
             ax1.bar(
-                x + i * width,
+                x + (i - (num_wm_types - 1) / 2) * width,
                 data,
                 width,
                 label=get_short_watermark_name(watermark_type),
@@ -114,7 +117,7 @@ def plot(df: pd.DataFrame, output_path: str):
             ]
 
             ax2.bar(
-                x + i * width,
+                x + (i - (num_wm_types - 1) / 2) * width,
                 data,
                 width,
                 label=get_short_watermark_name(watermark_type),
@@ -130,8 +133,8 @@ def plot(df: pd.DataFrame, output_path: str):
 
         # Customize both subplots with improved formatting
         for ax in [ax1, ax2]:
-            # IMPORTANT: width/2 is the default, use 3 * width/2 for BoN plots
-            ax.set_xticks(x + width / 2)
+            # Center ticks on groups regardless of number of bars
+            ax.set_xticks(x)
             ax.set_xticklabels(
                 [
                     get_short_model_name(model).replace("-Inst", "")
@@ -157,7 +160,7 @@ def plot(df: pd.DataFrame, output_path: str):
         )
 
         # Adjust layout with more space at the top for the legend
-        plt.tight_layout(rect=[0, 0, 1, 0.90])
+        plt.tight_layout(rect=(0, 0, 1, 0.90))
 
         # Save the figure with higher quality
         plt.savefig(output_path, bbox_inches="tight", dpi=300)

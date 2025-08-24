@@ -22,7 +22,7 @@
 
 # With BoN
 python plots/plot_simplex.py \
---input_path $HOME/mint/wm-output40GB/outputs/watermarking-v1/simplex-data-BoN-4-normalized.tsv \
+--input_path $HOME/mint/wm-output40GB/outputs/watermarking-v2/simplex-data-BoN-4-normalized.tsv \
 --model_name "Phi-3-mini-4k-instruct"
 # --model_name "Qwen2.5-7B-Instruct"
 
@@ -33,10 +33,10 @@ python plots/plot_simplex.py \
 # Without BoN (but remember here you did multinomial sampling for Gumbel)
 
 # python plots/plot_stacked_bar_chart.py \
-# --input_path $HOME/mint/wm-output40GB/outputs/watermarking-v1/simplex-data.tsv \
-# --output_path $HOME/mint/wm-output40GB/outputs/watermarking-v1/simplexdata_stackedbar.pdf
+# --input_path $HOME/mint/wm-output40GB/outputs/watermarking-v2/simplex-data.tsv \
+# --output_path $HOME/mint/wm-output40GB/outputs/watermarking-v2/simplexdata_stackedbar.pdf
 
 # With BoN
 # python plots/plot_stacked_bar_chart.py \
-# --input_path $HOME/mint/wm-output40GB/outputs/watermarking-v1/simplex-data-BoN.tsv \
-# --output_path $HOME/mint/wm-output40GB/outputs/watermarking-v1/simplexdata_BoN_stackedbar.pdf
+# --input_path $HOME/mint/wm-output40GB/outputs/watermarking-v2/simplex-data-BoN.tsv \
+# --output_path $HOME/mint/wm-output40GB/outputs/watermarking-v2/simplexdata_BoN_stackedbar.pdf

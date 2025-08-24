@@ -7,11 +7,11 @@ N=${1:-2}
 EXP_NAME=${2:-"exp_004_overrefusal_beam_rewards_armo_refusal"}
 TGT_DIR_NAME=${3:-"exp_004_overrefusal_beam_rewards_armo_refusal_BoN"}
 if [ "$CLUSTER" = "WULVER" ]; then
-    EXP_DIR_PREFIX="/project/phan/av787/projs/watermarking-v1/outputs"
+    EXP_DIR_PREFIX="/project/phan/av787/projs/outputs/watermarking-v2"
 elif [ "$CLUSTER" = "AWS" ]; then
-    EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1"
+    EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v2"
 else
-    EXP_DIR_PREFIX="/Users/verapurv/mint/wm-output40GB/outputs/watermarking-v1"
+    EXP_DIR_PREFIX="/Users/verapurv/mint/wm-output40GB/outputs/watermarking-v2"
 fi
 
 # In words, this is saying find the index of the top score in idx = watermarked_texts_reward_score[:n]

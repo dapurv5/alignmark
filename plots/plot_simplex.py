@@ -238,6 +238,9 @@ def main(input_path: str, model_name: str = None):
         "Meta-Llama-3.1-8B-Instruct": "^",
         "Llama-3.1-8B-Instruct": "^",
         "Mistral-7B-Instruct-v0.3": "D",
+        "Mistral-Small-3.1-24B-Instruct-2503": "o",
+        "Qwen2.5-14B-Instruct": "x",
+        "gemma-2-27b-it": "s",
     }
     # Filter the markers to only include the models in the dataframe
     markers = {k: v for k, v in markers.items() if k in df["Model Name"].unique()}
