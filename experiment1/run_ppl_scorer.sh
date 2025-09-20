@@ -4,7 +4,7 @@ set -o errexit -o xtrace -o nounset
 
 # Values to be set by user
 ###################
-CLUSTER="WULVER"  # "AWS" or "WULVER"
+CLUSTER="AWS"  # "AWS" or "WULVER"
 EXP_NAME=${1:-"exp_001_sweep_temp_hhrlhf_beam_rewards_armo"}
 NUM_GPUS_PER_PROCESS=1
 NUM_PROCESSES=8
