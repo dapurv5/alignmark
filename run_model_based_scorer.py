@@ -6,7 +6,6 @@ import os
 import fire
 import numpy as np
 
-from model_based_scorer import ModelBasedScorerRegistry
 from utils import get_device_to_use
 
 logging.basicConfig(level=logging.INFO)
@@ -41,6 +40,9 @@ def run_model_based_scorer(
         output_dir = os.path.dirname(output_path)
 
         if num_processes == 1 and num_gpus_per_process == 0:
+            # Import locally to ensure CUDA visibility is already configured if needed
+            from model_based_scorer import ModelBasedScorerRegistry
+
             scorer = ModelBasedScorerRegistry.get(scorer_model)(
                 text_field=text_field,
                 file_name_suffix=file_name_suffix,
@@ -183,14 +185,22 @@ def process_func(
             [str(gpu_id) for gpu_id in gpu_ids_to_use]
         )
         os.environ["TOKENIZERS_PARALLELISM"] = "false"
+        # Reduce fragmentation when loading large models
+        os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+
+        # Import AFTER masking devices so Torch/Transformers see the correct set
+        from model_based_scorer import ModelBasedScorerRegistry
 
         print(f"Process {process_id}: Loading model {scorer_model}")
+        # After masking with CUDA_VISIBLE_DEVICES, GPUs inside this process are reindexed from 0..N-1.
+        # Use local indices to avoid invalid device ordinal errors.
+        local_gpu_ids = list(range(len(gpu_ids_to_use)))
         scorer = ModelBasedScorerRegistry.get(scorer_model)(
             text_field=text_field,
             file_name_suffix=file_name_suffix,
             score_field_name=score_field_name,
             device=device_to_use,
-            gpu_ids=gpu_ids_to_use,
+            gpu_ids=local_gpu_ids,
         )
         for input_file in files:
             logger.info(f"Process {process_id}: Processing {input_file}")
@@ -231,7 +241,7 @@ def compute_parallel(
     files_to_process = [
         list(chunk) for chunk in np.array_split(filelist, num_processes)
     ]
-    device_to_use = get_device_to_use(num_gpus_per_process, num_processes)
+    device_to_use = get_device_to_use(num_processes, num_gpus_per_process)
 
     if debug_mode:
         print("Running in debug mode (single process)...")

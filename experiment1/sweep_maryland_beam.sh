@@ -12,7 +12,7 @@ set -o errexit -o xtrace -o nounset
 ###################
 CLUSTER="AWS"  # "AWS" or "WULVER"
 MODEL_NAME=${1:-"meta-llama/Llama-3.2-1B-Instruct"}
-EXP_NAME=${2:-"exp_005_hhrlhf_beam"}
+EXP_NAME=${2:-"exp_001_sweep_temp_hhrlhf_beam"}
 DATASET_SIZE=1024
 SEED=42
 CLEAN_MODEL_AFTER_RUN=${CLEAN_MODEL_AFTER_RUN:-"false"}

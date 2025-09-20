@@ -36,7 +36,7 @@ for temperature in $(seq 0.2 0.2 1.0); do
 
     OUTPUT_FILENAME="out_hhrlhf_${SIMPLE_MODEL_NAME}_openai_${SEED}_temperature_${temperature}_ngram_4.jsonl"
 
-    CUDA_VISIBLE_DEVICES=3 python $VLLM_WATERMARK_DIR/scripts/generate_wm_and_unwm.py \
+    CUDA_VISIBLE_DEVICES=0 python $VLLM_WATERMARK_DIR/scripts/generate_wm_and_unwm.py \
       --input_path "Dahoas/full-hh-rlhf" \
       --hf_split "test" \
       --input_key "prompt" \
@@ -49,8 +49,8 @@ for temperature in $(seq 0.2 0.2 1.0); do
       --temperature $temperature \
       --max_tokens 250 \
       --top_p 0.95 \
-      --num_wm_generations_per_prompt 4 \
-      --num_unwm_generations_per_prompt 2 \
+      --num_wm_generations_per_prompt 8 \
+      --num_unwm_generations_per_prompt 4 \
       --dataset_start_row 0 \
       --dataset_end_row $DATASET_SIZE
 done
