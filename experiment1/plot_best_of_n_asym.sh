@@ -10,12 +10,13 @@ if [ "$CLUSTER" = "WULVER" ]; then
 elif [ "$CLUSTER" = "AWS" ]; then
     EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1"
 else
-    EXP_DIR_PREFIX="/Users/verapurv/mint/wm-output40GB/outputs/watermarking-v1"
+    EXP_DIR_PREFIX="/Users/verapurv/mint/wm-output40GB/outputs/20250920/outputs/watermarking-v2"
 fi
 
 model_list=("Llama-3.1-8B-Instruct" "Phi-3-mini-4k-instruct")
+model_list=("Qwen2.5-14B-Instruct" "Qwen2.5-7B-Instruct" "gemma-2-27b-it")
 
-for temperature in $(seq 0.2 0.2 1.0); do
+for temperature in $(seq 1.0 0.2 1.0); do
     OUTPUT_DIR=$EXP_DIR_PREFIX/$EXP_NAME/BoNs-$temperature
     mkdir -p $OUTPUT_DIR
     python utils/mv_files.py \
@@ -32,7 +33,7 @@ for temperature in $(seq 0.2 0.2 1.0); do
             --output_file $OUTPUT_DIR/plots/rewards_${model}_bon.pdf \
             --score_name reward \
             --param_name_to_plot BoN \
-            --plot_theoretical_sqrt_log
+            #--plot_theoretical_sqrt_log
     done
 done
 

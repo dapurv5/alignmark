@@ -11,7 +11,7 @@ if [ "$CLUSTER" = "WULVER" ]; then
 elif [ "$CLUSTER" = "AWS" ]; then
     EXP_DIR_PREFIX="/home/ec2-user/SageMaker/outputs/watermarking-v1"
 else
-    EXP_DIR_PREFIX="/Users/verapurv/mint/wm-output40GB/outputs/watermarking-v1"
+    EXP_DIR_PREFIX="/Users/verapurv/mint/wm-output40GB/outputs/20250920/outputs/watermarking-v2"
 fi
 
 # In words, this is saying find the index of the top score in idx = watermarked_texts_reward_score[:n]
