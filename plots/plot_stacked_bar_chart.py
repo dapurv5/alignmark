@@ -6,6 +6,7 @@ from fire import Fire
 
 from plots.plot_utils import (
     get_color,
+    get_model_size_for_sort,
     get_pattern,
     get_short_model_name,
     get_short_watermark_name,
@@ -62,18 +63,11 @@ def plot(df: pd.DataFrame, output_path: str):
         ax1 = fig.add_subplot(gs[0, 0])
         ax2 = fig.add_subplot(gs[0, 1])
 
-        # Sort models by average delta unsafe
-        model_order = (
-            delta_df.groupby("Model Name")["Delta_Unsafe"]
-            .mean()
-            .sort_values(ascending=True)
-            .index
+        # Sort models by size (smallest to largest)
+        model_order = sorted(
+            delta_df["Model Name"].unique(),
+            key=lambda m: (get_model_size_for_sort(m), get_short_model_name(m).lower()),
         )
-
-        # Sort models by size (uncomment for scaling plots)
-        # model_order = sorted(
-        #     model_order,
-        # )
 
         # Plot Unsafe changes
         x = np.arange(len(model_order))

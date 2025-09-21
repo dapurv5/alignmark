@@ -4,6 +4,7 @@ from typing import Any
 import fire
 from plot_utils import (
     get_color,
+    get_model_size_for_sort,
     get_pattern,
     get_short_model_name,
     get_short_watermark_name,
@@ -16,8 +17,10 @@ from plot_utils import (
 def plot_score_comparison(
     all_models_data: dict[str, dict[str, float]], output_file: Path, score_name: str
 ) -> None:
+    # Sort models by numeric size (e.g., 0.5B < 1.5B < 3B < 7B < 14B)
     models: list[str] = sorted(
-        list(all_models_data.keys()), key=lambda m: get_short_model_name(m).lower()
+        list(all_models_data.keys()),
+        key=lambda m: (get_model_size_for_sort(m), get_short_model_name(m).lower()),
     )
     watermark_types = list(all_models_data.values())[0].keys()
     watermark_types_sorted = sorted(
@@ -241,8 +244,16 @@ def main(
         all_models_data[model_name] = averaged
 
     output_file = output_path / f"score_comparison_all_models_{score_name}.png"
-    # Sort all_models_data by model name
-    all_models_data = dict(sorted(all_models_data.items(), key=lambda x: x[0]))
+    # Sort models by numeric size for consistent table ordering
+    all_models_data = dict(
+        sorted(
+            all_models_data.items(),
+            key=lambda x: (
+                get_model_size_for_sort(x[0]),
+                get_short_model_name(x[0]).lower(),
+            ),
+        )
+    )
     plot_score_comparison(all_models_data, output_file, score_name)
     print(f"Generated combined plot at {output_file}")
 

@@ -173,6 +173,27 @@ def get_short_model_name(model_name: str) -> str:
     }.get(model_name, model_name)
 
 
+def get_model_size_for_sort(model_name: str) -> float:
+    """Extract numeric model size in billions from a model name for sorting.
+
+    Works with both full model names (e.g., "Qwen2.5-14B-Instruct") and the
+    short names returned by `get_short_model_name` (e.g., "Qwen2.5-14B-Inst").
+    If the size cannot be determined, returns -1.0 so that unknown-sized
+    models appear on the far left.
+    """
+    import re
+
+    short_name = get_short_model_name(model_name)
+    match = re.search(r"(\d+(?:\.\d+)?)\s*[bB]", short_name)
+    if match:
+        try:
+            return float(match.group(1))
+        except ValueError:
+            pass
+    # Fallback for names like "Mini" with no explicit size
+    return -1.0
+
+
 def get_short_watermark_name(watermark_type: str) -> str:
     return {
         "unwatermarked": "Unwatermarked",
