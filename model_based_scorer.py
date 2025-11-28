@@ -241,6 +241,58 @@ class ArmoRewardScorer(ModelBasedScorerBase):
         return res
 
 
+@ModelBasedScorerRegistry.register("Skywork/Skywork-Reward-V2-Llama-3.1-8B")
+class SkyworkRewardScorer(ModelBasedScorerBase):
+    def __init__(
+        self,
+        text_field: str,
+        file_name_suffix: str = "_rewards",
+        score_field_name: str = "reward_score",
+        device: str = "cpu",
+        gpu_ids: list[int] = [],
+    ):
+        super().__init__(text_field, file_name_suffix, score_field_name)
+        model_id = "Skywork/Skywork-Reward-V2-Llama-3.1-8B"
+        if gpu_ids:
+            assert device == "cuda", len(gpu_ids) == 1
+            gpu_id = gpu_ids[0]
+            device = f"cuda:{gpu_id}"
+        self.model = AutoModelForSequenceClassification.from_pretrained(
+            model_id,
+            device_map=device,
+            torch_dtype=torch.bfloat16,
+            attn_implementation="flash_attention_2",
+            num_labels=1,
+        )
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            model_id,
+            use_fast=True,
+        )
+
+    def get_score(self, prompt: str, texts: list[str]) -> list[float]:
+        res = []
+        for text in texts:
+            messages = [
+                {"role": "user", "content": prompt},
+                {"role": "assistant", "content": text},
+            ]
+            # Tokenize using apply_chat_template with tokenize=True to avoid
+            # duplicate BOS token issues mentioned in the Skywork documentation
+            input_ids = self.tokenizer.apply_chat_template(
+                messages,
+                tokenize=True,
+                return_tensors="pt",
+                truncation=True,
+                max_length=16384,  # Skywork-Reward-V2 supports up to 16384 tokens
+            ).to(self.model.device)
+            with torch.no_grad():
+                # Skywork-Reward-V2 returns logits instead of score attribute
+                output = self.model(input_ids)
+                score = output.logits[0][0].float().item()
+            res.append(score)
+        return res
+
+
 @ModelBasedScorerRegistry.register("meta-llama/Llama-3.1-8B")
 class PPLScorer(ModelBasedScorerBase):
     def __init__(
