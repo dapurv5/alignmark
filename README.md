@@ -63,15 +63,6 @@ The simplex plots three response types: Safe, Unsafe, Overrefusal. Arrows show t
 
 Phi-3-Mini looks safer after watermarking. It isn't. It just refuses everything: 43.5% more overrefusals with Gumbel. Safety scores mean nothing if you ignore overrefusals.
 
-## Citation
-
-```bibtex
-@inproceedings{vermawatermarking,
-  title={Watermarking Degrades Alignment in Language Models: Analysis and Mitigation},
-  author={Verma, Apurv and Phan, Hai and Trivedi, Shubhendu},
-  booktitle={The 1st Workshop on GenAI Watermarking}
-}
-```
 
 ---
 
@@ -167,4 +158,23 @@ python run_reward_scorer.py \
   --output_path /project/phan/av787/projs/watermarking/outputs/EXP_001_openai_viability_sweep
 
 bash plots/table_threshold_diff.sh
+```
+
+
+## Citation
+
+```bibtex
+@article{DBLP:journals/tmlr/VermaPT26,
+  author       = {Apurv Verma and
+                  Hai Phan and
+                  Shubhendu Trivedi},
+  title        = {Watermarking Degrades Alignment in Language Models: Analysis and Mitigation},
+  journal      = {Trans. Mach. Learn. Res.},
+  volume       = {2026},
+  year         = {2026},
+  url          = {https://openreview.net/forum?id=w2ATKQcfWx},
+  timestamp    = {Mon, 30 Mar 2026 13:45:54 +0200},
+  biburl       = {https://dblp.org/rec/journals/tmlr/VermaPT26.bib},
+  bibsource    = {dblp computer science bibliography, https://dblp.org}
+}
 ```
