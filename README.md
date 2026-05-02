@@ -164,17 +164,18 @@ bash plots/table_threshold_diff.sh
 ## Citation
 
 ```bibtex
-@article{DBLP:journals/tmlr/VermaPT26,
-  author       = {Apurv Verma and
-                  Hai Phan and
-                  Shubhendu Trivedi},
-  title        = {Watermarking Degrades Alignment in Language Models: Analysis and Mitigation},
-  journal      = {Trans. Mach. Learn. Res.},
-  volume       = {2026},
-  year         = {2026},
-  url          = {https://openreview.net/forum?id=w2ATKQcfWx},
-  timestamp    = {Mon, 30 Mar 2026 13:45:54 +0200},
-  biburl       = {https://dblp.org/rec/journals/tmlr/VermaPT26.bib},
-  bibsource    = {dblp computer science bibliography, https://dblp.org}
+@article{verma2026watermarking,
+  title={Watermarking Degrades Alignment in Language Models: Analysis and Mitigation},
+  author={Verma, Apurv and Phan, Hai and Trivedi, Shubhendu},
+  journal={Transactions on Machine Learning Research},
+  year={2026},
+  publisher={OpenReview.net}
+}
+
+@article{verma2025watermarking,
+  title={Watermarking Degrades Alignment in Language Models: Analysis and Mitigation},
+  author={Verma, Apurv and Phan, NhatHai and Trivedi, Shubhendu},
+  journal={arXiv preprint arXiv:2506.04462},
+  year={2025}
 }
 ```
